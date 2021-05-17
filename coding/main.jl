@@ -42,8 +42,6 @@ c = SeedConstants()
 nuisance = (mu=2.0e5, sigma=4.0e5)
 model = (ma=45.49366806966277, rhoa=0.3, σ_v=σ_v) # μeV, GeV/cm^3, 1
 # rudimentary fit on background with polynomial
-means = [2163.653849702412, 0.003453837942534399, -7.83250221655017e-9, -2.107389573858847e-17]
-means = [2127.547845662856, 379.4813930007909, -87.55094044387232, 0.7795212805749759]
 means = [2190.846044879241, 319.8237184038207, -89.23295673350981, 2.721724575537181]
 
 data = dummy_data_right_signal(nuisance, model, ex; p_noise=500000, kwargs=kwarg_dict)
@@ -65,7 +63,6 @@ plot_truths(truth,data,ex,kwarg_dict)
 
 posterior = PosteriorDensity(likelihood, prior)
 
-
 likelihood(truth)
 sb = signal_counts_bin(data[!,1].+kwarg_dict[:f_ref], 10.0^m_true,rhoa_true, sig_v_true,ex)
 plot(data[!,1],sb)
@@ -77,19 +74,12 @@ FileIO.save("./data/210507-testsamples4.jld2", Dict("samples" => samples))
 samples = FileIO.load("./data/210507-testsamples4.jld2", "samples")
 
 
-
-corner(samples, 5:7, modify=false, truths=[m_true, σ_v, rhoa_true], savefig="210510-cornerforAPM")
+corner(samples, 5:7, modify=false, truths=[m_true, σ_v, rhoa_true], savefig=nothing)
 plot(samples)
 plot(samples, vsels=collect(5:7))
 
 println("Mean: $(mean(samples))")
-plot_fit(samples, data, ex, kwarg_dict, savefig="210510-forAPM")
-plot_data(data)
-testpars = mean(samples)[1]
-fit_function(testpars,data[!,1]; kwargs=kwarg_dict)
-plot!(data[!,1], fit_function(testpars,data[!,1]; kwargs=kwarg_dict))
-
-
+plot_fit(samples, data, ex, kwarg_dict, savefig=nothing)
 
 #= If you want to get sensible values for the coefficients
 using Polynomials

@@ -249,30 +249,3 @@ end
 function background_powerspectrum(ω, kwarg_dict)
     return pdf.(Normal(kwarg_dict[:f_ref],1e6), ω) *0.0 #* 1e9
 end
-
-#=
-ex = SeedExperiment(10.0,1.0,5e4)
-
-sp = signal_powerspectrum(1.10005e10, 1e-3, 0.45, 10.0^-4.342049045403704, ex=ex)
-freqs = kwarg_dict[:f_ref] .+ collect(0.0:1e3:5.0e5)
-plot!(freqs.-kwarg_dict[:f_ref], signal_powerspectrum(freqs, 1e-3, 0.45, 10.0^-4.342049045403704) .+ background_powerspectrum(freqs, kwarg_dict))
-xlabel!("f - fref [Hz]")
-ylabel!("dPdω [10^{-27} W/(Hz) ]")
-mysavefig("210427-mockmodelwbackground")
-
-f_int = [1.100035e10,1.1000351e10]
-Counts(signal_powerspectrum(mean(f_int), 1e-3, 0.45, 10.0^-4.342049045403704) * 1e-23, f_int,100.0)
-
-
-using QuadGK
-
-prep(x) = signal_powerspectrum(x, 1e-3, 0.45, 10.0^-4.342049045403704, ex=ex)
-quadgk(prep, kwarg_dict[:f_ref], kwarg_dict[:f_ref]+1e7)
-=#
-
-function getsigma(vsig, logma, kwargs)
-    vrange = [0.0, vsig]
-    fmin = mu(logma, kwargs[:f_ref], velo=vrange[1])
-    fmax = mu(logma, kwargs[:f_ref], velo=vrange[2])
-    return abs(fmax - fmin)
-end

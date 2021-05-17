@@ -69,9 +69,6 @@ function corner(samples, params; modify=true, truths=nothing, savefig=nothing)
     plot!(xlabel=sigv_label, ylabel=rhoa_label, subplot=8)
     plot!(xlabel=rhoa_label, ylabel=L"\textrm{P}(\rho_a)", subplot=9)
 
-
-
-
     mysavefig(savefig)
     # Julia is weird with for clauses. To make everything show up, add this in the end!
     plot!()

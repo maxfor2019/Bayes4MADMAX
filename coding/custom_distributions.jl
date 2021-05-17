@@ -69,23 +69,7 @@ function Distributions.insupport(d::inv_sqrt_S{T}, x::Real)::Bool where {T <: Ab
     Distributions.minimum(d) <= x <= Distributions.maximum(d)
 end
 
-
-# function Distributions.quantile(d::inv_sqrt_S{T}, x::Real)::T where {T <: AbstractFloat}
-#     r::UnitRange{Int} = searchsorted(d.acc_prob, x)
-#     idx::Int = min(r.start, r.stop)
-#     p::T = d.acc_prob[ idx ]
-#     q::T = d.edges[idx]
-#     missing_p::T = x - p
-#     inv_weight::T = d.inv_weights[idx]
-#     if !isinf(inv_weight)
-#         q += missing_p * inv_weight
-#     end
-#     return min(q, maximum(d))
-# end
-
-
 Base.eltype(d::inv_sqrt_S{T}) where {T <: AbstractFloat}= T
-
 
 Statistics.mean(d::inv_sqrt_S) = d.μ
 
@@ -135,6 +119,5 @@ function Random.rand(rng::AbstractRNG, d::MaxwellBoltzmann{T})::T where {T <: Ab
     z = randn(rng, Float64) * d.a 
     vsq = x^2.0 + y^2.0 + z^2.0
     res = sqrt(vsq)
-    #res = 4.0 * pi / sqrt(2.0 * pi)^3. .* x.^2. ./ d.a^3. .* exp.(-x.^2. ./ (2.0*d.a^2.))
     return res
 end
