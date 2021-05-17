@@ -46,8 +46,38 @@ function dummy_data(nuisance::NamedTuple{(:mu,:sigma)}, model::NamedTuple{(:x0, 
     bin_widths = bin_edges_right - bin_edges_left
     bin_centers = (bin_edges_right + bin_edges_left) / 2
 
-    observed_power = Power(observed_counts, kwargs[:f_ref] .+ bin_centers, kwargs[:int_time])
+    observed_power = 1e23 .* Power(observed_counts, kwargs[:f_ref] .+ bin_centers, kwargs[:int_time])
 
     data = DataFrame([bin_centers, observed_power])
     return data
+end
+
+"""
+"""
+function dummy_data_right_signal(nuisance::NamedTuple{(:mu,:sigma)}, model::NamedTuple{(:ma, :rhoa, :σ_v)}, ex::Experiment; p_noise=5000, kwargs=Dict())
+    # Draw from signal
+    C_signal = signal_counts(model.ma.*1e-6, model.rhoa, ex)
+    N = rand(MaxwellBoltzmann(model.σ_v), convert(Int64, round(C_signal)))
+    data = freq(model.ma*1e-6, v=N) .- kwargs[:f_ref]
+
+    # Draw from background
+    append!(data, rand(Normal(nuisance.mu,nuisance.sigma), convert(Int64, round(p_noise))))
+
+    # Make a histogram out of it!
+    hist = append!(Histogram(0.0:ex.Δω:nuisance.sigma+nuisance.mu), data)
+
+    observed_counts = hist.weights
+
+    # Histogram binning:
+    bin_edges = hist.edges[1]
+    bin_edges_left = bin_edges[1:end-1]
+    bin_edges_right = bin_edges[2:end]
+    bin_widths = bin_edges_right - bin_edges_left
+    bin_centers = (bin_edges_right + bin_edges_left) / 2
+
+    #observed_power = 1e23 .* Power(observed_counts, kwargs[:f_ref] .+ bin_centers, kwargs[:int_time])
+
+    data = DataFrame([bin_centers, observed_counts])
+    return data
+
 end

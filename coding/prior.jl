@@ -65,12 +65,19 @@ end =#
     Everything else comes in by some sort of folding with this top hat distribution.
     I have no idea how this could work yet.
 """
-function logma_prior(data, kwargs)
+function ma_prior(data, kwargs)
     fstart = kwargs[:f_ref] + minimum(data[!,1])
     fend = kwargs[:f_ref] + maximum(data[!,1])
-    mstart = log10(mass(fstart) )#/ sqrt(2)) # sqrt(2) is the maximum factor contributed by velocity
-    mend = log10(mass(fend))                # velocity effect can only add, so upper bound stays intact
+    mstart = mass(fstart) .* 1e6
+    mend = mass(fend) .* 1e6     
     return mstart..mend
+end
+
+"""
+    Rho prior. Later this should involve E/N and true DM uncertainty.
+"""
+function rhoa_prior(rhoa_max)
+    return 0.0..rhoa_max
 end
 
 """
@@ -84,19 +91,19 @@ Priors include
         Actually the shape of v distribution has influence on the signal shape. Right now, this is just
         a gaussian, which should be more or less accurate for realistic velocities. However, this will
         become completely false, when two velocity components are considered (e.g. background+stream).
-    
+    Ps: Signal power. May ignore effect by width of frequency intervals. Right now it is converted from
+        initial photon counts aka rand(Normal(), 5000) or similar. Correct likelihood is unclear:
+        What is standard deviation for gaussian? Atm: Normal(Ps, Ps(sqrt(signal counts))). Is this correct?
 """
-
-
-println(logma_prior(data, kwarg_dict))
 
 #means = [16.711904185025094, 2.34436200254552, -0.2812509292477855, 0.1, 0.1]#, -0.005376850430048517, -0.0010847980505079456]
 #means = [15.558959729080668, 5.3637970522877194e-5, -7.763696363349609e-11, -4.9519966478436284e-17]
-means = [1.2000525312954732e-22, 3.248341200155389e-28, -7.963426216150934e-34, 2.363739346435701e-40]
+#means = [1.2000525312954732e-22, 3.248341200155389e-28, -7.963426216150934e-34, 2.363739346435701e-40]
+#means = [12.404009007393626, 2.3006283140420607e-5, -4.205894359043316e-11, -1.502637018719807e-17]
 prior = NamedTupleDist(
     b = [Normal(means[1], 5.0*abs(means[1])), Normal(means[2], 5.0*abs(means[2])), Normal(means[3], 5.0*abs(means[3])), Normal(means[4], 2.0*abs(means[4]))],
-    logma = logma_prior(data, kwarg_dict),
-    vsig = 5.0e-4..5.0e-3,
-    Ps = 1e-22..1e-21
+    ma = ma_prior(data, kwarg_dict),
+    sig_v = Normal(model.σ_v, 6.0 * 1.0e3/c.c),
+    rhoa = rhoa_prior(model.rhoa+0.15)
 )
 

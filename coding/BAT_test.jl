@@ -68,11 +68,12 @@ likelihood = let h = hist, f = fit_function
         end
 
         # Wrap `ll_value` in `LogDVal` so BAT knows it's a log density-value.
-        return LogDVal(-1) #LogDVal(ll_value)
+        return LogDVal(ll_value)
     end
 end
 
-likelihood(true_par_values)
+using BenchmarkTools
+@btime likelihood(wrong_par_values)
 
 using ValueShapes
 
@@ -231,7 +232,16 @@ PosteriorDensity{
 
 
 
-samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(), trafo=FullDensityTransform(), nsteps = 10^5, nchains = 4)).result
+samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(), nsteps = 10^5, nchains = 4)).result
+
+using FileIO, JLD2
+FileIO.save("./data/210507-testsamples2.jld2", Dict("samples" => samples))
+samples = FileIO.load("./data/210507-testsamples2.jld2", "samples")
+
+# HDF5 approach does not seem to work!!
+#import HDF5
+#bat_write("./data/210507-testsamples2.h5", samples)
+#samples = bat_read("./data/210507-testsamples2.h5").result
 
 SampledDensity(posterior, samples)
 

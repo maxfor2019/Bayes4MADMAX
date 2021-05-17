@@ -50,27 +50,61 @@ function corner(samples, params; modify=true, truths=nothing, savefig=nothing)
         for range in diag_plots
             j += 1
             for i in range
-                vline!([truths[j]], color="blue", ls=:dot, subplot=i)
+                vline!([truths[j]], color="blue", ls=:dot, lw=2, subplot=i)
             end
         end
     end
+    ma_label = L"m_a [\mu\textrm{eV}]"
+    rhoa_label = L"\rho_a [\textrm{GeV}/\textrm{cm}^3]"
+    sigv_label = L"\sigma_v [c]"
+    ma_range = 45.493660:16e-6:45.493676
+    sigv_range = 6.5e-4:5e-5:8e-4
+    plot!(xlabel=ma_label, ylabel=L"\textrm{P}(m_a)", xticks=ma_range, subplot=1)
+    plot!(xlabel=ma_label, ylabel=sigv_label, xticks=ma_range, subplot=2)
+    plot!(xlabel=ma_label, ylabel=rhoa_label, xticks=ma_range, subplot=3)
+    plot!(xlabel=ma_label, ylabel=sigv_label, xticks=ma_range, subplot=4)
+    plot!(xlabel=sigv_label, ylabel=L"\textrm{P}(\sigma_v)", xticks=sigv_range, subplot=5)
+    plot!(xlabel=sigv_label, ylabel=rhoa_label, subplot=6)
+    plot!(xlabel=ma_label, ylabel=rhoa_label, xticks=ma_range, subplot=7)
+    plot!(xlabel=sigv_label, ylabel=rhoa_label, subplot=8)
+    plot!(xlabel=rhoa_label, ylabel=L"\textrm{P}(\rho_a)", subplot=9)
+
+
+
+
     mysavefig(savefig)
     # Julia is weird with for clauses. To make everything show up, add this in the end!
     plot!()
 end
 
-function plot_fit(samples, data, kwargs; savefig=nothing)
-    plot_data(data)
+function plot_fit(samples, data, ex, kwargs; scaling=1e23, savefig=nothing)
+    power_o = scaling .* Power(data[!,2], data[!,1] .+ kwargs[:f_ref], ex.t_int)
+    data_tmp = DataFrame([data[!,1], power_o])
+    plot_data(data_tmp, label="mock data")
     testpars = mean(samples)[1]
-    plot!(data[!,1], fit_function(testpars,data[!,1]; kwargs=kwargs))
+    counts_p = fit_function(testpars,data[!,1].*kwargs[:scale_ω],ex; kwargs=kwargs)
+    plot!(data[!,1], scaling .* Power(counts_p, data[!,1] .+ kwargs[:f_ref], ex.t_int), label="fit")
+    xlabel!(L"f - f_{\textrm{ref}}")
+    ylabel!(L"\textrm{Power}\;[10^{-23} \textrm{W}]")
     mysavefig(savefig)
     plot!()
 end
 
-function plot_data(data; savefig=nothing)
-    plot(data[!,1], data[!,2], yscale=:log10)
+function plot_truths(truths, data, ex, kwargs; savefig=nothing)
+    plot_data(data)
+    plot!(data[!,1], fit_function(truths,data[!,1].*kwargs[:scale_ω],ex; kwargs=kwargs))
     mysavefig(savefig)
+    xlabel!("\$ f - f_{ref} \$")
+    ylabel!("P*1e-23")
     plot!()
+end
+
+function plot_data(data; label="", savefig=nothing)
+    plot(data[!,1], data[!,2], label=label)
+    xlabel!("f - f_(ref)")
+    ylabel!("Photon counts / bin")
+    #mysavefig(savefig)
+    #plot!()
 end
 
 function mysavefig(name; index=nothing, path="data/plots/", form=".pdf")
