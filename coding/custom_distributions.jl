@@ -103,17 +103,17 @@ function MaxwellBoltzmann(a::Real, T::DataType = Float64)
     )
 end
 
-function Distributions.pdf(d::MaxwellBoltzmann{T}, x::Real)::T where {T <: AbstractFloat}
+function Distributions.pdf(d::MaxwellBoltzmann{T}, x::Real) where {T <: Real}
     return 4.0 * pi / sqrt(2.0 * pi)^3. .* x.^2. ./ d.a^3. .* exp.(-x.^2. ./ (2.0*d.a^2.))
 end
 
 using SpecialFunctions
 
-function Distributions.cdf(d::MaxwellBoltzmann{T}, x::Real)::T where {T <: AbstractFloat}
-    return erf(x ./ (sqrt(2) * d.a)) .- sqrt(2 / pi) .* x .* exp.(-x.^2.0 ./ (2.0 * d.a^2.0)) ./ d.a
+function Distributions.cdf(d::MaxwellBoltzmann{T}, x::Real) where {T <: Real}
+    return erf(x ./ (sqrt(2) * d.a)) .- sqrt(2 / pi) .* x .* exp.(-x.^2 ./ (2 * d.a^2)) ./ d.a
 end
 
-function Random.rand(rng::AbstractRNG, d::MaxwellBoltzmann{T})::T where {T <: AbstractFloat}
+function Random.rand(rng::AbstractRNG, d::MaxwellBoltzmann{T}) where {T <: Real}
     x = randn(rng, Float64) * d.a 
     y = randn(rng, Float64) * d.a 
     z = randn(rng, Float64) * d.a 

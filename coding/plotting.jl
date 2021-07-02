@@ -89,7 +89,7 @@ end
 
 function plot_truths(truths, data, ex, kwargs; savefig=nothing)
     plot_data(data)
-    plot!(data[!,1], fit_function(truths,data[!,1].*kwargs[:scale_ω],ex; kwargs=kwargs))
+    plot!(data[1], fit_function(truths,data[1].*kwargs[:scale_ω],ex; kwargs=kwargs))
     mysavefig(savefig)
     xlabel!("\$ f - f_{ref} \$")
     ylabel!("P*1e-23")
@@ -97,7 +97,7 @@ function plot_truths(truths, data, ex, kwargs; savefig=nothing)
 end
 
 function plot_data(data; label="", savefig=nothing)
-    plot(data[!,1], data[!,2], label=label)
+    plot(data[1], data[2], label=label)
     xlabel!("f - f_(ref)")
     ylabel!("Photon counts / bin")
     #mysavefig(savefig)

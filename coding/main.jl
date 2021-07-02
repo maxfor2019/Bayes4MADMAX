@@ -6,8 +6,6 @@ println("Hello there!")
     # which functional form? Which parameters are meaningful?
 # Include signal in this!
 # Come up with realistic priors on axion mass and abundancy from theory parameters
-
-
 using BAT
 using Random, LinearAlgebra, Statistics, Distributions, StatsBase
 include("custom_distributions.jl")
@@ -29,28 +27,30 @@ t_int = 100 # integration time [s]
 Δω = 1e3 # integration frequency interval [Hz]
 ex = SeedExperiment(Be=Be, A=A, β=5e4, t_int=50.0, Δω=5e3) # careful not to accidentally ignore a few of the relevant parameters!
 
-kwarg_dict=Dict(
+# rename to config options or sth
+kwarg_dict=(
     # reference frequency
-    :f_ref => 11.0e9,
-    :scale_ω => 1e-5,
+    f_ref = 11.0e9,
+    scale_ω = 1e-5,
 )
 
-c = SeedConstants()
+const c = SeedConstants()
 σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
 σ_v *= 1.0e3/c.c
 
 nuisance = (mu=2.0e5, sigma=4.0e5)
 model = (ma=45.49366806966277, rhoa=0.3, σ_v=σ_v) # μeV, GeV/cm^3, 1
 # rudimentary fit on background with polynomial
-means = [2190.846044879241, 319.8237184038207, -89.23295673350981, 2.721724575537181]
+means = [2190.846044879241, 319.8237184038207, -89.23295673350981, 2.721724575537181]  # p_noise=500000
+means = [38.24640564539845, 9.499141922484778, 1.2171121325012888, -0.5683639960555529] #  p_noise=10000
 
-data = dummy_data_right_signal(nuisance, model, ex; p_noise=500000, kwargs=kwarg_dict)
+data = dummy_data_right_signal(nuisance, model, ex; p_noise=10000, kwargs=kwarg_dict) # p_noise=500000 is not stable
 plot_data(data)
 
 include("prior.jl")
 
 m_true = model.ma
-println("logm_true = $m_true")
+println("m_true = $m_true")
 sig_v_true = σ_v
 println("sig_v_true = $sig_v_true")
 rhoa_true = model.rhoa
@@ -64,14 +64,19 @@ plot_truths(truth,data,ex,kwarg_dict)
 posterior = PosteriorDensity(likelihood, prior)
 
 likelihood(truth)
-sb = signal_counts_bin(data[!,1].+kwarg_dict[:f_ref], 10.0^m_true,rhoa_true, sig_v_true,ex)
-plot(data[!,1],sb)
+sb = signal_counts_bin(data[1].+kwarg_dict.f_ref, m_true*1e-6,rhoa_true, sig_v_true,ex)
+plot(data[1],sb)
 
-#samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(1.1, false), burnin = MCMCMultiCycleBurnin(max_ncycles=50))).result
-#@time samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(), nsteps = 5e4, nchains = 6, burnin = MCMCMultiCycleBurnin(max_ncycles=100))).result
+# Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
+#samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
+#@time samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5e4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=2))).result
 
-FileIO.save("./data/210507-testsamples4.jld2", Dict("samples" => samples))
-samples = FileIO.load("./data/210507-testsamples4.jld2", "samples")
+using UltraNest
+@time samples = bat_sample(posterior, ReactiveNestedSampling()).result
+
+
+FileIO.save("./data/samples/210702-test_ReactNest.jld2", Dict("samples" => samples))
+samples = FileIO.load("./data/samples/210702-test_ReactNest.jld2", "samples")
 
 
 corner(samples, 5:7, modify=false, truths=[m_true, σ_v, rhoa_true], savefig=nothing)

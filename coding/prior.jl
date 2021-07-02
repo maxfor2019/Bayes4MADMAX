@@ -7,8 +7,8 @@ preinf = true
     I have no idea how this could work yet.
 """
 function ma_prior(data, kwargs)
-    fstart = kwargs[:f_ref] + minimum(data[!,1])
-    fend = kwargs[:f_ref] + maximum(data[!,1])
+    fstart = kwargs.f_ref + minimum(data[1])
+    fend = kwargs.f_ref + maximum(data[1])
     mstart = mass(fstart) .* 1e6
     mend = mass(fend) .* 1e6     
     return mstart..mend

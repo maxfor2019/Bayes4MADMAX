@@ -77,7 +77,7 @@ function dummy_data_right_signal(nuisance::NamedTuple{(:mu,:sigma)}, model::Name
 
     #observed_power = 1e23 .* Power(observed_counts, kwargs[:f_ref] .+ bin_centers, kwargs[:int_time])
 
-    data = DataFrame([bin_centers, observed_counts])
+    data = (bin_centers, observed_counts)
     return data
 
 end
