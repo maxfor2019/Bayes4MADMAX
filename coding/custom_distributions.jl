@@ -109,8 +109,8 @@ end
 
 using SpecialFunctions
 
-function Distributions.cdf(d::MaxwellBoltzmann{T}, x::Real) where {T <: Real}
-    return erf(x ./ (sqrt(2) * d.a)) .- sqrt(2 / pi) .* x .* exp.(-x.^2 ./ (2 * d.a^2)) ./ d.a
+function Distributions.cdf(d::MaxwellBoltzmann{T}, x::Real) where {T <: Real} # 30 μs Dont broadcast if not absolutely necessary!
+    return erf(x / (sqrt(2) * d.a)) - sqrt(2 / pi) * x * exp(-x^2 / (2 * d.a^2)) / d.a
 end
 
 function Random.rand(rng::AbstractRNG, d::MaxwellBoltzmann{T}) where {T <: Real}

@@ -75,12 +75,12 @@ function corner(samples, params; modify=true, truths=nothing, savefig=nothing)
 end
 
 function plot_fit(samples, data, ex, kwargs; scaling=1e23, savefig=nothing)
-    power_o = scaling .* Power(data[!,2], data[!,1] .+ kwargs[:f_ref], ex.t_int)
-    data_tmp = DataFrame([data[!,1], power_o])
+    power_o = scaling .* Power(data[2], data[1] .+ kwargs[:f_ref], ex.t_int)
+    data_tmp = (data[1], power_o)
     plot_data(data_tmp, label="mock data")
     testpars = mean(samples)[1]
-    counts_p = fit_function(testpars,data[!,1].*kwargs[:scale_ω],ex; kwargs=kwargs)
-    plot!(data[!,1], scaling .* Power(counts_p, data[!,1] .+ kwargs[:f_ref], ex.t_int), label="fit")
+    counts_p = fit_function(testpars,data[1].*kwargs.scale_ω,ex; kwargs=kwargs)
+    plot!(data[1], scaling .* Power(counts_p, data[1] .+ kwargs.f_ref, ex.t_int), label="fit")
     xlabel!(L"f - f_{\textrm{ref}}")
     ylabel!(L"\textrm{Power}\;[10^{-23} \textrm{W}]")
     mysavefig(savefig)
