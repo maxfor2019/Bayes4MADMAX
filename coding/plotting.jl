@@ -100,6 +100,8 @@ function plot_data(data; label="", savefig=nothing)
     plot(data[1], data[2], label=label)
     xlabel!("f - f_(ref)")
     ylabel!("Photon counts / bin")
+    #xlims!((3.3e7,3.5e7))
+    #ylims!((2200,2300))
     #mysavefig(savefig)
     #plot!()
 end

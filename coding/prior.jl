@@ -1,5 +1,3 @@
-preinf = true
-
 """
     Calculates possible ma values for considered frequency range.
     This essentially is a flat prior. No possibility for anything else yet!

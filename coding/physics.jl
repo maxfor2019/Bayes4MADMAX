@@ -26,11 +26,11 @@ end
     All relevant experimental parameters.
 """
 struct Experiment
-    Be::Float64 # [T]
-    A::Float64 # [m^2]
-    β::Float64 # []
-    t_int::Float64 # [s]
-    Δω::Float64 # [Hz]
+    Be::Float64 # external magnetic field [T]
+    A::Float64 # surface of dielectric disks [m^2]
+    β::Float64 # Boost factor (assumed to be constant over this frequency range) []
+    t_int::Float64 # integration time [s]
+    Δω::Float64 # integration frequency interval [Hz]
 end
 
 function SeedExperiment(;Be=10.0, A=1.0, β=5.0e4, t_int=100.0, Δω=1.0e3)
@@ -104,11 +104,6 @@ end
 function velocity(freq, mass; c::Constants=SeedConstants())
     # freq::[Hz]
     # mass::[eV]
-    #try
-    #    sqrt.((freq ./ (mass / c.h_eV)).^2.0 .- 1.0)
-    #catch
-    #    0.0
-    #end
     if freq >= mass / c.h_eV
         sqrt((freq / (mass / c.h_eV))^2.0 - 1.0)
     else
@@ -152,7 +147,7 @@ function fa(ma)
     return 1e21 * (5.7064e-6/ma)
 end
 
-function gaγγ(fa, EoverN)
+function gaγγ(fa, EoverN, c::Constants=SeedConstants())
     αem = c.qe^2 / (4*pi* c.eps0 * c.hbar_J * c.c)
     return αem / (2.0 * pi * fa) * abs(EoverN - 1.924)
 end
@@ -183,11 +178,6 @@ end
 function dvdω(ω, ma; c::Constants=SeedConstants()) #::[1/Hz]
     # ω::[Hz]
     # ma::[eV]
-    #try
-    #    ω / ((ma/c.h_eV)^2. * sqrt((ω*c.h_eV/ma)^2.0 - 1.0))
-    #catch
-    #    0.0
-    #end
     if ω >= mac/c.h_eV
         ω / ((ma/c.h_eV)^2. * sqrt((ω*c.h_eV/ma)^2.0 - 1.0))
     else
@@ -238,14 +228,14 @@ function signal_counts(ma, rhoa, ex::Experiment; c::Constants=SeedConstants())
     return Counts
 end
 
-function signal_counts_bin(freqency, ma, rhoa, σ_v, ex::Experiment; c::Constants=SeedConstants()) # 799 μs
+function signal_counts_bin(freqency, ma, rhoa, σ_v, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
     prefactor = signal_prefactor(rhoa, ma, ex; c=c, scaling=1.0) # 232 ns
     Eγ = freq(ma) * c.h_J # This can be assumed constant, since the width of the peak is very small compared to f_ref. Parts far away from peak are 0 anyways...
-    # cdf part is integral over maxwell distribution. freq = data[!,1] are bin_centers
+    # cdf part is integral over maxwell distribution. freq = data[1] are bin_centers
     Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .+ ex.Δω/2, ma)) .- cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .- ex.Δω/2,ma)))
     return Counts
 end
 
 function background_powerspectrum(ω, kwarg_dict)
-    return pdf.(Normal(kwarg_dict[:f_ref],1e6), ω) *0.0 #* 1e9
+    return pdf.(Normal(kwarg_dict.f_ref,1e6), ω) *0.0 #* 1e9
 end

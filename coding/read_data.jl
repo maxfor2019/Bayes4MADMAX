@@ -9,16 +9,16 @@ using Distributions
 function simulated_data(filename, path="./data/Fake_Axion_Data/Data Set 3/")
 
     #df = CSV.read(path*"Het3_10K_0-15z_18-85GHz_20170413_160107_S03.smp", delim="\t")
-    df = CSV.read(path*filename, delim="\t")
-    data = df[!,2:3]
+    df = DataFrame(CSV.File(path*filename, delim="\t"))
+    data = [df[!,2], df[!,3]]
     hplanck = 6.62606957e-34 # [Js]
 
     # Convert the whole thing to photon counts.
-    # Assumes data[!,1] is in Hz and data[!,2] in J.
+    # Assumes data[1] is in Hz and data[2] in J.
     #data[!,2] ./= (hplanck .* data[!,1])
-    data[!,2] .*= 1e22
+    data[2] .*= 1e22
     # Make frequencies more workable
-    data[!,1] .*= 1e-6
+    #data[1] .*= 1e-6
     return data
 end
 

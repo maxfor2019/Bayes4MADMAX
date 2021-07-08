@@ -104,7 +104,7 @@ function MaxwellBoltzmann(a::Real, T::DataType = Float64)
 end
 
 function Distributions.pdf(d::MaxwellBoltzmann{T}, x::Real) where {T <: Real}
-    return 4.0 * pi / sqrt(2.0 * pi)^3. .* x.^2. ./ d.a^3. .* exp.(-x.^2. ./ (2.0*d.a^2.))
+    return 4.0 * pi / sqrt(2.0 * pi)^3. * x^2. / d.a^3. * exp(-x^2. / (2.0*d.a^2.))
 end
 
 using SpecialFunctions
