@@ -33,7 +33,7 @@ struct Experiment
     Δω::Float64 # integration frequency interval [Hz]
 end
 
-function SeedExperiment(;Be=10.0, A=1.0, β=5.0e4, t_int=100.0, Δω=1.0e3)
+function Experiment(;Be=10.0, A=1.0, β=5.0e4, t_int=100.0, Δω=1.0e3)
     return Experiment(Be, A, β, t_int, Δω)
 end
 
