@@ -155,7 +155,7 @@ fwd_trafo = inv(bwd_trafo)
 
 standard_prior = BAT.StandardMvNormal(length(standard_truth))
 function model(stand_pars)
-    parameters = fwd_trafo(stand_pars)[1]
+    parameters = fwd_trafo(stand_pars)[]
     Product(Normal.(gp_forward_model(parameters), parameters.n))
 
 end
