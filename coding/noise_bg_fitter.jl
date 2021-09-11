@@ -58,9 +58,9 @@ function amplitude_spectrum(d::Real, zero_mode_dist::Normal, slope::Real, offset
 end
 
 
-function my_mask(x)
+function my_mask(x, n_data::Integer)
     #  y = x[mask]
-     y = x[1:length(data)] #FIXME
+     y = x[1:n_data] #FIXME
      y
 end
 
@@ -92,20 +92,20 @@ function amplitude_forward_model(parameters)
 end
 
 
-function gp_forward_model(parameters)
+function gp_forward_model(parameters::NamedTuple, n_data::Integer, n_x_pad::Integer, harmonic_pad_distances::Tuple, ht::FFTW.r2rFFTWPlan)
     # amplitude = amplitude_forward_model(parameters)
     amplitude = 1.
     harmonic_gp = amplitude .* parameters.ξ
-    gp = my_ht(harmonic_gp) * (harmonic_pad_distances[1] / sqrt(length(x_pad)))
-    my_mask(gp)
+    gp = apply_ht(ht, harmonic_gp) * (harmonic_pad_distances[1] / sqrt(n_x_pad))
+    my_mask(gp, n_data)
 end
 
-function my_ht(dp::Vector{Float64})
+function apply_ht(ht::FFTW.r2rFFTWPlan, dp::Vector{Float64})
     ht * dp
 end
 
 
-function my_ht(dp::Vector{ForwardDiff.Dual{T, V, N}}) where {T,V,N}
+function apply_ht(ht::FFTW.r2rFFTWPlan, dp::Vector{ForwardDiff.Dual{T, V, N}}) where {T,V,N}
     val_res = ht *  ForwardDiff.value.(dp)
     psize = size(ForwardDiff.partials(dp[1]), 1)
     ps = x -> ForwardDiff.partials.(dp, x)
@@ -154,12 +154,13 @@ standard_truth = bwd_trafo(truth)
 fwd_trafo = inv(bwd_trafo)
 
 standard_prior = BAT.StandardMvNormal(length(standard_truth))
-function model(stand_pars)
-    parameters = fwd_trafo(stand_pars)[]
-    Product(Normal.(gp_forward_model(parameters), parameters.n))
 
+model = let fwd_trafo = fwd_trafo, n_data = length(data), n_x_pad = length(x_pad), harmonic_pad_distances = harmonic_pad_distances, ht = ht
+    function (stand_pars)
+        parameters = fwd_trafo(stand_pars)[]
+        Product(Normal.(gp_forward_model(parameters, n_data, n_x_pad, harmonic_pad_distances, ht), parameters.n))
+    end
 end
-
 
 
 # sampler =  MCMCSampling(mcalg = HamiltonianMC(), nsteps = 10^4, nchains = 4)
@@ -189,9 +190,5 @@ max_posterior = Optim.optimize(x -> -MGVI.posterior_loglike(model, x, data),
                  starting_point, LBFGS(), Optim.Options(show_trace=false, g_tol=1E-10, iterations=300));
 
 plot(data)
-plot!(gp_forward_model(fwd_trafo(Optim.minimizer(max_posterior))[1]))
-plot!(gp_forward_model(fwd_trafo(findmode_result)[1]))
-
-
-
-
+plot!(gp_forward_model(fwd_trafo(Optim.minimizer(max_posterior))[1], length(data), length(x_pad), harmonic_pad_distances, ht))
+plot!(gp_forward_model(fwd_trafo(findmode_result)[1], length(data), length(x_pad), harmonic_pad_distances, ht))
