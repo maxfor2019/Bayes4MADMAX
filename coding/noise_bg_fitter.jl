@@ -14,7 +14,7 @@ using Zygote
 data = readdlm("./data/Fake_Axion_Data/Data_Set_1/Test00Osc01_17-01-24_0915.dat")#, '\t', Float32, '\n')
 
 
-vals = data[11001:11100,2]
+vals = data[10001:10100,2]
 vals = (vals .- mean(vals))./std(vals)
 dists = (data[:,1] - circshift(data[:,1],1))
 # vals = vals[12001:12100]
@@ -51,11 +51,11 @@ function dist_array(dims::NTuple{N,<:Real}, harmonic_distances::NTuple{N,<:Real}
 end
 
 
-function amplitude_spectrum(d::Real, zero_mode_dist::Normal, slope::Real, offset::Real)
-    # R = float(promote_type(typeof(d), typeof(zero_mode), typeof(slope), typeof(offset)))
-    # d ≈ 0 : R(zero_mode), R(exp(offset + slope * log(d)))
-    ifelse(d ≈ 0, promote(std(zero_mode_dist), exp(offset + slope * log(d)))...)
-end
+# function amplitude_spectrum(d::Real, zero_mode_dist::Normal, slope::Real, offset::Real)
+#     # R = float(promote_type(typeof(d), typeof(zero_mode), typeof(slope), typeof(offset)))
+#     # d ≈ 0 : R(zero_mode), R(exp(offset + slope * log(d)))
+#     ifelse(d ≈ 0, promote(std(zero_mode_dist), exp(offset + slope * log(d)))...)
+# end
 
 
 function my_mask(x, n_data::Integer)
@@ -63,25 +63,6 @@ function my_mask(x, n_data::Integer)
      y = x[1:n_data] #FIXME
      y
 end
-
-# function adjoint_mask(x)
-#     y = zeros(size(mask))
-#     y[mask] = x
-#     return y
-# end
-
-# @adjoint my_mask(x) = my_mask(x), y -> (adjoint_mask(y),)
-
-
-
-
-# function adjoint_mask(dp::Vector{ForwardDiff.Dual{T, V, N}}) where {T,V,N}
-#     val_res = adjoint_mask(ForwardDiff.value.(dp))
-#     psize = size(ForwardDiff.partials(dp[1]), 1)
-#     ps = x -> ForwardDiff.partials.(dp, x)
-#     val_ps = map((x -> adjoint_mask(ps(x))), 1:psize)
-#     ForwardDiff.Dual{T}.(val_res, val_ps...)
-# end
 
 
 function amplitude_forward_model(parameters)
@@ -93,8 +74,8 @@ end
 
 
 function gp_forward_model(parameters::NamedTuple, n_data::Integer, n_x_pad::Integer, harmonic_pad_distances::Tuple, ht::FFTW.r2rFFTWPlan)
-    # amplitude = amplitude_forward_model(parameters)
-    amplitude = 1.
+    amplitude = amplitude_forward_model(parameters)
+    # amplitude = 1.
     harmonic_gp = amplitude .* parameters.ξ
     gp = apply_ht(ht, harmonic_gp) * (harmonic_pad_distances[1] / sqrt(n_x_pad))
     my_mask(gp, n_data)
@@ -129,10 +110,10 @@ mask = mask .<= length(mask)÷2
 
 prior = NamedTupleDist(
     ξ = BAT.StandardMvNormal(length(D)), 
-    # fluctuations = Uniform(0.1, 90),
-    # zero_mode = Uniform(0.1, 200),
-    # slope = Uniform(-6, -2),
-    n = Uniform(1e-4,10)
+    fluctuations = Uniform(1000, 900000),
+    zero_mode = Uniform(0.1, 200),
+    slope = Uniform(-8, -2),
+    n = Uniform(1e-4,0.1)
 )
 
 truth = rand(prior)
@@ -172,23 +153,41 @@ end
 starting_point = bwd_trafo(rand(prior))
 first_iteration = mgvi_kl_optimize_step(rng,
                                         model, data,
-                                        starting_point;
-                                        # jacobian_func=FullJacobianFunc,   
-                                        # jacobian_func=FwdDerJacobianFunc,                                        
+                                        starting_point;                                     
                                         jacobian_func=FwdRevADJacobianFunc,
                                         residual_sampler=ImplicitResidualSampler,
+                                        num_residuals=5,
                                         optim_options=Optim.Options(iterations=10, show_trace=true),
-                                        residual_sampler_options=(;cg_params=(;maxiter=10)))
+                                        residual_sampler_options=(;cg_params=(;maxiter=100)))
 
+
+
+next_iteration = first_iteration
+for i in 1:5
+    global next_iteration = mgvi_kl_optimize_step(rng,
+                                                  model, data,
+                                                  next_iteration.result;
+                                                  jacobian_func=FwdRevADJacobianFunc,
+                                                  residual_sampler=ImplicitResidualSampler,
+                                                  num_residuals=5,
+                                                  optim_options=Optim.Options(iterations=20, show_trace=true),
+                                                  residual_sampler_options=(;cg_params=(;maxiter=100)))
+end
 
 likelihood = x -> LogDVal(MGVI.posterior_loglike(model, x, data))
-posterior = PosteriorDensity(likelihood, standard_prior)
+# posterior = PosteriorDensity(likelihood, standard_prior)
 
-findmode_result = bat_findmode(posterior,MaxDensityLBFGS()).result
+# findmode_result = bat_findmode(posterior,MaxDensityLBFGS()).result
 
-max_posterior = Optim.optimize(x -> -MGVI.posterior_loglike(model, x, data),
-                 starting_point, LBFGS(), Optim.Options(show_trace=false, g_tol=1E-10, iterations=300));
+# max_posterior = Optim.optimize(x -> -MGVI.posterior_loglike(model, x, data),
+#                  starting_point, LBFGS(), Optim.Options(show_trace=false, g_tol=1E-10, iterations=300));
 
-plot(data)
-plot!(gp_forward_model(fwd_trafo(Optim.minimizer(max_posterior))[1], length(data), length(x_pad), harmonic_pad_distances, ht))
-plot!(gp_forward_model(fwd_trafo(findmode_result)[1], length(data), length(x_pad), harmonic_pad_distances, ht))
+res = fwd_trafo(next_iteration.result)[1]
+plot(data,label="data")
+# plot!(gp_forward_model(rand(prior), length(data), length(x_pad), harmonic_pad_distances, ht),label="MAP")
+plot!(gp_forward_model(res,  length(data), length(x_pad), harmonic_pad_distances, ht),label="MGVI")
+
+
+# plot(data - gp_forward_model(res, length(data), length(x_pad), harmonic_pad_distances, ht),label="residual")
+# hspan!([-res.n,res.n],alpha=0.5)
+
