@@ -9,97 +9,21 @@ using DelimitedFiles
 using PDMats
 using MGVI
 using Optim
+using HDF5
 # using Zygote: @adjoint, @ignore, gradient
 using Zygote
+include("forward_models.jl")
 data = readdlm("./data/Fake_Axion_Data/Data_Set_1/Test00Osc01_17-01-24_0915.dat")#, '\t', Float32, '\n')
 
-
-# vals = data[10001:20000,2]
-vals = data[:,2]
+vals = data[10001:11000,2]
 vals = (vals .- mean(data[:,2]))./std(data[:,2])
 dists = (data[:,1] - circshift(data[:,1],1))
-# vals = vals[12001:12100]
 
-
-
-plot(data[:,1],data[:,2], ylims=(minimum(vals),maximum(vals)))
-# data = data[1:100]
-# data = vals
-# distances = (mean(dists[2:end]),)
-# distances = (1/100,)
 dims = (length(vals),)
 distances = (1/length(data[:,1]),)
 data = vals
 harmonic_pad_distances = 1 ./ (2 .* dims .* distances)
 
-
-
-function map_idx(idx::Real, idx_range::AbstractUnitRange{<:Integer})
-    i = idx - minimum(idx_range)
-    n = length(eachindex(idx_range))
-    n_2 = n >> 1
-    ifelse(i <= n_2, i, i - n)
-end
-
-function dist_k(idx::CartesianIndex, ax::NTuple{N,<:AbstractUnitRange{<:Integer}}, harmonic_distances::NTuple{N,<:Real}) where N
-    mapped_idx = map(map_idx, Tuple(idx), ax)
-    norm(map(*, mapped_idx, harmonic_distances))
-end
-
-function dist_array(dims::NTuple{N,<:Real}, harmonic_distances::NTuple{N,<:Real}) where N
-    cart_idxs = CartesianIndices(map(Base.OneTo, dims))
-    dist_k.(cart_idxs, Ref(axes(cart_idxs)), Ref(harmonic_distances))
-end
-
-
-# function amplitude_spectrum(d::Real, zero_mode_dist::Normal, slope::Real, offset::Real)
-#     # R = float(promote_type(typeof(d), typeof(zero_mode), typeof(slope), typeof(offset)))
-#     # d ≈ 0 : R(zero_mode), R(exp(offset + slope * log(d)))
-#     ifelse(d ≈ 0, promote(std(zero_mode_dist), exp(offset + slope * log(d)))...)
-# end
-
-
-function my_mask(x, n_data::Integer)
-    #  y = x[mask]
-     y = x[1:n_data] #FIXME
-     y
-end
-
-
-function amplitude_forward_model(parameters)
-    corr = exp.(parameters.a .+ parameters.slope .* log.(D[2:end]))
-    # corr = (parameters.fluctuations * harmonic_pad_distances[1]^2 ./(parameters. .+ (D./1).^(-parameters.slope)))[2:end]
-    corr = vcat(parameters.zero_mode, corr)
-    # corr[1] = parameters.zero_mode
-    corr.^0.5 
-end
-
-
-function gp_forward_model(parameters::NamedTuple, n_data::Integer, n_x_pad::Integer, harmonic_pad_distances::Tuple, ht::FFTW.r2rFFTWPlan)
-    amplitude = amplitude_forward_model(parameters)
-    # amplitude = 1.
-    harmonic_gp = amplitude .* parameters.ξ
-    gp = apply_ht(ht, harmonic_gp) * (harmonic_pad_distances[1] / sqrt(n_x_pad))
-    my_mask(gp, n_data)
-end
-
-function apply_ht(ht::FFTW.r2rFFTWPlan, dp::Vector{Float64})
-    ht * dp
-end
-
-
-function apply_ht(ht::FFTW.r2rFFTWPlan, dp::Vector{ForwardDiff.Dual{T, V, N}}) where {T,V,N}
-    val_res = ht *  ForwardDiff.value.(dp)
-    psize = size(ForwardDiff.partials(dp[1]), 1)
-    ps = x -> ForwardDiff.partials.(dp, x)
-    val_ps = map((x -> ht*ps(x)), 1:psize)
-    ForwardDiff.Dual{T}.(val_res, val_ps...)
-end
-
-
-rng = Random.default_rng()
-
-# trafo_dht = FFTW.plan_r2r(zeros(2 .* dims), FFTW.DHT)
 x = collect(distances[1]:distances[1]:distances[1] * dims[1];)
 x_pad = collect(distances[1]:distances[1]:distances[1] * dims[1]*2;)
 
@@ -107,29 +31,34 @@ ht = FFTW.plan_r2r(zeros(length(x_pad)), FFTW.DHT);
 D = dist_array(2 .* dims, harmonic_pad_distances)
 
 
-mask = collect(1:length(x_pad))
-mask = mask .<= length(mask)÷2
+my_amplitude = let D = D
+    parameters -> amplitude_forward_model(parameters.offset, parameters.slope, 
+                                            parameters.zero_mode, D)
+end
+
+ht = FFTW.plan_r2r(zeros(length(x_pad)), FFTW.DHT);
+
+my_ht = let n_x_pad = length(x_pad), harmonic_pad_distances = harmonic_pad_distances, ht=ht
+    input -> harmonic_transform(input, n_x_pad, harmonic_pad_distances, ht)
+end
+
+my_gp = let nbin = length(data), harmonic_transform = my_ht, amplitude = my_amplitude
+        parameters -> gp_forward_model(parameters.ξ, amplitude(parameters), my_ht, nbin)
+end
+
+rng = Random.default_rng()
 
 prior = NamedTupleDist(
     ξ = BAT.StandardMvNormal(length(D)), 
-    a = Uniform(-3, 3),
-    zero_mode = Uniform(0.01, 10),
+    offset = Uniform(-3, 3),
+    zero_mode = Uniform(0.001, 1),
     slope = Uniform(-8, -2),
     n = Uniform(0.00001,0.001)
 )
 
 truth = rand(prior)
-# data = gp_forward_model(truth)[mask]
+
 data = vals
-# likelihood = let data = data, f = gp_forward_model
-#     params -> begin
-#         residual = data .- f(params)[mask]
-#         noise_weigted_residual = residual ./ 1.0e-4  #FIXME weights
-#         llhd = - 0.5 .* sum(residual .* noise_weigted_residual)
-#         # llhd = logpdf(MvNormal(μ,N),data)
-#         return LogDVal(llhd)
-#     end
-# end
 
 bwd_trafo = BAT.DistributionTransform(Normal, prior)
 standard_truth = bwd_trafo(truth)
@@ -138,72 +67,76 @@ fwd_trafo = inv(bwd_trafo)
 
 standard_prior = BAT.StandardMvNormal(length(standard_truth))
 
-model = let fwd_trafo = fwd_trafo, n_data = length(data), n_x_pad = length(x_pad), harmonic_pad_distances = harmonic_pad_distances, ht = ht
+model = let prior_trafo = fwd_trafo, forward_model = my_gp
     function (stand_pars)
-        parameters = fwd_trafo(stand_pars)[]
-        Product(Normal.(gp_forward_model(parameters, n_data, n_x_pad, harmonic_pad_distances, ht), parameters.n))
+        parameters = prior_trafo(stand_pars)[]
+        Product(Normal.(forward_model(parameters), parameters.n))
     end
 end
 
 
-# sampler =  MCMCSampling(mcalg = HamiltonianMC(), nsteps = 10^4, nchains = 4)
-# r = bat_sample(posterior, sampler)
-
-
-
-
-starting_point = bwd_trafo(rand(prior))
-first_iteration = mgvi_kl_optimize_step(rng,
+starting_point = 0.1*bwd_trafo(rand(prior))
+next_iteration = mgvi_kl_optimize_step(rng,
                                         model, data,
                                         starting_point;                                     
                                         jacobian_func=FwdRevADJacobianFunc,
                                         residual_sampler=ImplicitResidualSampler,
                                         num_residuals=5,
-                                        optim_options=Optim.Options(iterations=10, show_trace=true),
+                                        optim_options=Optim.Options(iterations=5, show_trace=true),
                                         residual_sampler_options=(;cg_params=(;maxiter=100)))
 
 
 N_samps = 5
-next_iteration = first_iteration
-for i in 1:3
+for i in 1:30
     global next_iteration = mgvi_kl_optimize_step(rng,
                                                   model, data,
                                                   next_iteration.result;
                                                   jacobian_func=FwdRevADJacobianFunc,
                                                   residual_sampler=ImplicitResidualSampler,
                                                   num_residuals=N_samps,
-                                                  optim_options=Optim.Options(iterations=20, show_trace=true),
+                                                  optim_options=Optim.Options(iterations=10, show_trace=true),
                                                   residual_sampler_options=(;cg_params=(;maxiter=100)))
 end
 
-# likelihood = x -> LogDVal(MGVI.posterior_loglike(model, x, data))
-# posterior = PosteriorDensity(likelihood, standard_prior)
+########## SAVE RESULTS ##########
+sample_dict = Dict()
+for key in keys(prior)
+    sample_dict[key] = Vector{Float64}[]
+end
 
-# findmode_result = bat_findmode(posterior,MaxDensityLBFGS()).result
+for i in 1:size(next_iteration.samples)[end]
+    samp = fwd_trafo(next_iteration.samples[:,i])[1]
+    for key in keys(sample_dict)
+        s =  samp[key]
+        if  ~isa(s,Vector)
+            s = [s]
+        end
+        push!(sample_dict[key], s)
+    end
+end
 
-# max_posterior = Optim.optimize(x -> -MGVI.posterior_loglike(model, x, data),
-                #  starting_point, LBFGS(), Optim.Options(show_trace=false, g_tol=1E-10, iterations=300));
+for key in keys(sample_dict)
+    h5open("coding/background_fit.h5", "cw") do file
+        s = hcat(sample_dict[key]...)
+        write(file,"$(String(key))", s)
+    end
+end
 
 res = fwd_trafo(next_iteration.result)[1]
 plot(data,label="data",seriestype = :scatter)
 for i in 1:N_samps*2
-    plot!(gp_forward_model(fwd_trafo(next_iteration.samples[:,i])[1],  length(data), length(x_pad), harmonic_pad_distances, ht),color="black",alpha=0.3)
+    plot!(my_gp(fwd_trafo(next_iteration.samples[:,i])),color="black",alpha=0.3)
 end
-# plot!(gp_forward_model(rand(prior), length(data), length(x_pad), harmonic_pad_distances, ht),label="MAP")
-# plot!(gp_forward_model(res,  length(data), length(x_pad), harmonic_pad_distances, ht),label="MGVI")
-plot!(gp_forward_model(res,  length(data), length(x_pad), harmonic_pad_distances, ht),label="mean", color="red")
-savefig("full_bg.png")
+plot!(my_gp(res),label="mean", color="red")
+# # savefig("full_bg.png")
 
-for i in 1:(length(data)/10):length(data)
-    ii = Int64(round(i))
-    plot(data[ii:ii+100],label="data",seriestype = :scatter)
-    for i in 1:N_samps*2
-        plot!(gp_forward_model(fwd_trafo(next_iteration.samples[:,i])[1],  length(data), length(x_pad), harmonic_pad_distances, ht)[ii:ii+100],color="black",alpha=0.3)
-    end
-    plot!(gp_forward_model(res,  length(data), length(x_pad), harmonic_pad_distances, ht)[ii:ii+100],label="mean", color="red")
-    savefig("bg_cut_$ii.png")
-end
-
-# plot(data - gp_forward_model(res, length(data), length(x_pad), harmonic_pad_distances, ht),label="residual")
-# hspan!([-res.n,res.n],alpha=0.5)
+# for i in 1:(length(data)/10):length(data)
+    # ii = Int64(round(i))
+    # plot(data[ii:ii+100],label="data",seriestype = :scatter)
+    # for i in 1:N_samps*2
+    #     plot!(my_gp(fwd_trafo(next_iteration.samples[:,i]))[ii:ii+100],color="black",alpha=0.3)
+    # end
+    # plot!(my_gp(res)[ii:ii+100],label="mean", color="red")
+#     # savefig("bg_cut_$ii.png")
+# end
 

@@ -11,7 +11,7 @@ using MGVI
 using Optim
 
 
-###### UTILITY ####
+###### UTILITY ######
 
 function autodiff_linop(dp, linop)
     val_res = linop(ForwardDiff.value.(dp))
@@ -30,7 +30,11 @@ function adjoint_mask(input, mask)
         return y
     end
     function apply_adjoint_mask(input::Vector{ForwardDiff.Dual{T, V, N}}, mask) where {T,V,N}
-        autodiff_linop(input, apply_adjoint_mask)
+        val_res = apply_adjoint_mask(ForwardDiff.value.(input), mask)
+        psize = size(ForwardDiff.partials(input[1]), 1)
+        ps = x -> ForwardDiff.partials.(input, x)
+        val_ps = map((x -> apply_adjoint_mask(ps(x), mask)), 1:psize)
+        ForwardDiff.Dual{T}.(val_res, val_ps...)
     end
     apply_adjoint_mask(input, mask)
 end
