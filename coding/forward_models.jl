@@ -26,7 +26,7 @@ end
 function adjoint_mask(input, mask)
     function apply_adjoint_mask(input, mask)
         y = zeros(size(mask))
-        y[mask] = x
+        y[mask] = input
         return y
     end
     function apply_adjoint_mask(input::Vector{ForwardDiff.Dual{T, V, N}}, mask) where {T,V,N}
@@ -68,11 +68,11 @@ end
 
 ######## HARMONIC TRANSFORM #######
 
-function harmonic_transform(input, n_x_pad::Integer, harmonic_pad_distances::Tuple, ht::FFTW.r2rFFTWPlan)
-    function apply_ht(ht::FFTW.r2rFFTWPlan, dp::Vector{Float64})
+function harmonic_transform(input, n_x_pad::Integer, harmonic_pad_distances::Tuple, ht)
+    function apply_ht(ht, dp::Vector{Float64})
         ht * dp
     end
-    function apply_ht(ht::FFTW.r2rFFTWPlan, dp::Vector{ForwardDiff.Dual{T, V, N}}) where {T,V,N}
+    function apply_ht(ht, dp::Vector{ForwardDiff.Dual{T, V, N}}) where {T,V,N}
         val_res = ht *  ForwardDiff.value.(dp)
         psize = size(ForwardDiff.partials(dp[1]), 1)
         ps = x -> ForwardDiff.partials.(dp, x)
