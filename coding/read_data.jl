@@ -3,6 +3,24 @@ using CSV
 using Distributions
 
 """
+"""
+function combine_data(names_list; path="./data/Fake_Axion_Data/Data_Set_3/")
+    files = [readdlm(path*name) for name in names_list]
+    l = length(names_list)
+    if all([files[1][:,1] == files[i][:,1] for i in 1:l])
+        data = zeros(size(files[1]))
+        data[:,1] = deepcopy(files[1][:,1])
+        for i in 1:l
+            data[:,2] += files[i][:,2]
+        end
+        data[:,2] ./= l
+    else
+        error("Files seem to use different frequencies. Interpolation would be in order.")
+    end
+    return data
+end
+
+"""
     Reads in simulated dataset with more or less realistic background
     (and axion signal).
 """

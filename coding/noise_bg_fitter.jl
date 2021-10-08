@@ -13,7 +13,10 @@ using HDF5
 # using Zygote: @adjoint, @ignore, gradient
 using Zygote
 include("forward_models.jl")
-data = readdlm("./data/Fake_Axion_Data/Data_Set_1/Test00Osc01_17-01-24_0915.dat")#, '\t', Float32, '\n')
+
+datafiles = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
+data = combine_data(datafiles)
+
 
 vals = data[10001:11000,2]
 vals = (vals .- mean(data[:,2]))./std(data[:,2])
