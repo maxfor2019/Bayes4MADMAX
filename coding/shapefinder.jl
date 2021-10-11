@@ -9,13 +9,19 @@ using PDMats
 using HDF5
 using LogExpFunctions
 include("forward_models.jl")
+include("read_data.jl")
 rng = Random.default_rng()
 
 
 ########### DATA HANDLING ##########
 
-data_raw = readdlm("./data/Fake_Axion_Data/Data_Set_1/Test00Osc01_17-01-24_0915.dat")#, '\t', Float32, '\n')
-vals = data_raw[10000:10200,2]
+datafiles = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
+data = combine_data(datafiles)
+
+snippet = 201:1201
+
+rel_freqs = data_raw[snippet,1]
+vals = data_raw[snippet,2]
 vals = (vals .- mean(data_raw[:,2]))./std(data_raw[:,2])
 dims = (length(vals),)
 distances = (1/length(data_raw[:,1]),)
@@ -57,6 +63,45 @@ bg_noise_covariances = [0. .* bg_amplitudes[i].^2 .+ harmonic_noise_vars[i] for 
 plot(D[2:dims[1]],bg_noise_covariances[1][2:dims[1]].^0.5, xaxis=:log, yaxis=:log)
 plot!(D[2:dims[1]],bg_amplitudes[1][2:dims[1]], xaxis=:log, yaxis=:log)
 
+####### BUILD FORWARD MODEL - AXION ######
+
+Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
+freqs = rel_freqs .+ options.f_ref
+
+include("physics.jl")
+ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δfreq) # careful not to accidentally ignore a few of the relevant parameters!
+
+options=(
+    # reference frequency
+    f_ref = 11.0e9,
+    scale_ω = 1e-5,
+)
+
+my_axion = let f = freqs, ex = ex
+    parameters -> axion_forward_model(parameters.ma, parameters.ρa, parameters.σv, ex, f)
+end
+
+# signal is roughly at 11e9+18e5 Hz for this mass value
+# ma + 0.001 shifts the signal roughly by 4e5 Hz
+signal = (
+    ma=45.501, 
+    ρa=0.3,
+    σv=218.0
+)
+
+ax = my_axion(signal)
+
+if maximum(ax) > 0.0
+    nothing
+else
+    error("The specified axion model is not within the frequency range of your data. Fiddle around with signal.ma or options.f_ref!")
+end
+
+data = my_ht(bg_amplitudes[1].*rand(Normal(),length(x_pad)))[mask]
+data = data + ax
+
+
+
 ####### BUILD FORWARD MODEL ######
 
 mask = collect(1:length(x_pad))
@@ -69,7 +114,7 @@ end
 my_gaussian_shape = let x = x
     parameters -> gaussian_shape_forward_model(parameters.α, parameters.μ, parameters.σ, x)
 end
-
+"""
 ###### INJECT SIGNAL ######
 truth = (
     α = 0.000003,
@@ -80,6 +125,7 @@ truth = (
 true_shape = my_gaussian_shape(truth)
 data = my_ht(bg_amplitudes[1].*rand(Normal(),length(x_pad)))[mask]
 data = data + true_shape
+"""
 
 # Sanity check
 a = rand(Normal(),length(x_pad))
