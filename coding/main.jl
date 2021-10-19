@@ -20,7 +20,7 @@ include("read_data.jl")
 include("plotting.jl")
 include("forward_models.jl")
 
-data = gaussian_noise(1e6,20e6,2.034e3,scale=1e-24)
+data = gaussian_noise(1e6,20e6,2.034e3,scale=18.9e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
 
@@ -58,40 +58,36 @@ signal = (
 ax = my_axion(signal)
 vals += ax
 data = hcat(rel_freqs,vals)
-#data = data[1:700,:]
+data = data[1:700,:]
+
+maximum(ax)/18.9e-24#std(data[:,2])
+
 
 plot(data[:,1],data[:,2])
 ylims!((minimum(data[:,2]),maximum(data[:,2])))
 
-
 include("prior.jl")
+include("likelihood.jl")
 
 prior = make_prior(data, signal, options)
 
 truth = (ma=signal.ma, sig_v=signal.σv, rhoa=signal.ρa)
 println("truth = $truth")
-#wrongth = (b=means, ma=model.ma+5e-4, sig_v=σ_v, rhoa=model.rhoa)
-
-plot!(data[:,1],fit_function(truth,data[:, 1],ex, options))
-
-include("likelihood.jl")
 plot_truths(truth,data,ex, options)
 
 posterior = PosteriorDensity(likelihood, prior)
 
 likelihood(truth)
-likelihood(mean(samples)[1])
-likelihood((ma=45.50, sig_v=2., rhoa=0.8))
+likelihood((ma=45.50, sig_v=2., rhoa=0.0))
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
-@time output = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100)))
-@time output = bat_sample(posterior, MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20)))
-
 sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100))
+#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20))
+#using UltraNest
+#sampling = ReactiveNestedSampling()
 
-using UltraNest
-@time output = bat_sample(posterior, ReactiveNestedSampling())
+@time output = bat_sample(posterior, sampling)
 
 input = (
     data=data,
@@ -109,8 +105,8 @@ run = Dict(
     "output" => output
 )
 
-FileIO.save("./data/samples/211019-test_noB_bigS.jld2", run)
-output = FileIO.load("./data/samples/211019-test_noB_bigS.jld2", "output")
+FileIO.save("./data/samples/211019-test_noB_SN1.jld2", run)
+output = FileIO.load("./data/samples/211019-test_noB_SN1.jld2", "output")
 
 samples = output.result
 # corner doesnt work anymore sadly
@@ -120,7 +116,7 @@ plot(samples)
 
 println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
-plot_fit(samples, data, ex, options, savefig="211018-test_noB_hugeS_full-fit")
+plot_fit(samples, data, ex, options, savefig=nothing)
 #xlims!((2e6,2.3e6))
 #mysavefig("211018-test_noB_hugeS_full-fit-peak")
 #= If you want to get sensible values for the coefficients
