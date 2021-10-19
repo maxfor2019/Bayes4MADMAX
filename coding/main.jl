@@ -18,39 +18,61 @@ using FileIO, JLD2 # for saving the samples
 include("physics.jl")
 include("read_data.jl")
 include("plotting.jl")
+include("forward_models.jl")
 
-# Set up your experiment:
-ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=50.0, Δω=5e3) # careful not to accidentally ignore a few of the relevant parameters!
+data = gaussian_noise(1e6,20e6,2.034e3,scale=1e-24)
+rel_freqs = data[:,1]
+vals = data[:,2]
 
-# rename to config options or sth
 options=(
     # reference frequency
     f_ref = 11.0e9,
-    scale_ω = 1e-5,
 )
 
-const c = SeedConstants()
-σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
-σ_v *= 1.0e3/c.c
+Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
+freqs = rel_freqs .+ options.f_ref
 
-nuisance = (mu=2.0e5, sigma=4.0e5) # will initialize gaussian background
-model = (ma=45.49366806966277, rhoa=0.3, σ_v=σ_v) # μeV, GeV/cm^3, 1
-# rudimentary fit on background with polynomial (at the bottom)
-means = [2190.846044879241, 319.8237184038207, -89.23295673350981, 2.721724575537181]  # p_noise=500000
-#means = [38.24640564539845, 9.499141922484778, 1.2171121325012888, -0.5683639960555529] #  p_noise=10000
+ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δfreq) # careful not to accidentally ignore a few of the relevant parameters!
 
+my_axion = let f = freqs, ex = ex
+    function ax(parameters)
+        sig = axion_forward_model(parameters.ma, parameters.ρa, parameters.σv, ex, f)
+        if maximum(sig) > 0.0
+            nothing
+        else
+            error("The specified axion model is not within the frequency range of your data. Fiddle around with signal.ma or options.f_ref!")
+        end
+        return sig
+    end
 
+end
 
-data = dummy_data_right_signal(nuisance, model, ex; p_noise=500000, kwargs=options) # p_noise=500000 is not stable
-plot_data(data)
+# signal is roughly at 11e9+18e5 Hz for this mass value
+# ma + 0.001 shifts the signal roughly by 4e5 Hz
+signal = (
+    ma=45.501, 
+    ρa=0.3,
+    σv=218.0
+)
+
+ax = my_axion(signal)
+vals += ax
+data = hcat(rel_freqs,vals)
+#data = data[1:700,:]
+
+plot(data[:,1],data[:,2])
+ylims!((minimum(data[:,2]),maximum(data[:,2])))
+
 
 include("prior.jl")
 
-prior = make_prior(data, means, model, options)
+prior = make_prior(data, signal, options)
 
-truth = (b=means, ma=model.ma, sig_v=σ_v, rhoa=model.rhoa)
+truth = (ma=signal.ma, sig_v=signal.σv, rhoa=signal.ρa)
 println("truth = $truth")
 #wrongth = (b=means, ma=model.ma+5e-4, sig_v=σ_v, rhoa=model.rhoa)
+
+plot!(data[:,1],fit_function(truth,data[:, 1],ex, options))
 
 include("likelihood.jl")
 plot_truths(truth,data,ex, options)
@@ -58,30 +80,49 @@ plot_truths(truth,data,ex, options)
 posterior = PosteriorDensity(likelihood, prior)
 
 likelihood(truth)
-sb = signal_counts_bin(data[1].+options.f_ref, model.ma*1e-6,model.rhoa, σ_v,ex)
-plot(data[1],sb, xlim=[3e5,3.5e5])
+likelihood(mean(samples)[1])
+likelihood((ma=45.50, sig_v=2., rhoa=0.8))
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
 @time output = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100)))
 @time output = bat_sample(posterior, MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20)))
 
+sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100))
+
 using UltraNest
 @time output = bat_sample(posterior, ReactiveNestedSampling())
 
+input = (
+    data=data,
+    ex=ex,
+    options=options,
+    signal=signal,
+    prior=prior,
+    likelihood=likelihood,
+    posterior=posterior,
+    MCMCsampler=sampling
+)
 
-FileIO.save("./data/samples/210712-test_HM.jld2", Dict("output" => output))
-output = FileIO.load("./data/samples/210712-test_UN.jld2", "output")
+run = Dict(
+    "input" => input,
+    "output" => output
+)
+
+FileIO.save("./data/samples/211019-test_noB_bigS.jld2", run)
+output = FileIO.load("./data/samples/211019-test_noB_bigS.jld2", "output")
 
 samples = output.result
-
 # corner doesnt work anymore sadly
 # corner(samples, 5:7, modify=false, truths=[m_true, σ_v, rhoa_true], savefig=nothing)
-plot(samples, vsel=collect(5:7))
+plot(samples)
+#mysavefig("211018-test_noB_hugeS_full")
 
 println("Mean: $(mean(samples))")
-plot_fit(samples, data, ex, kwarg_dict, savefig=nothing)
-
+println("Std: $(std(samples))")
+plot_fit(samples, data, ex, options, savefig="211018-test_noB_hugeS_full-fit")
+#xlims!((2e6,2.3e6))
+#mysavefig("211018-test_noB_hugeS_full-fit-peak")
 #= If you want to get sensible values for the coefficients
 using Polynomials
 

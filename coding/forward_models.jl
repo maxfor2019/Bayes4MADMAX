@@ -110,11 +110,11 @@ function axion_forward_model(ma::Real, ρa::Real, σv::Real, ex::Experiment, f::
 
     c = SeedConstants()
     #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
-    σv *= 1.0e3/c.c
+    #σv *= 1.0e3/c.c
 
     function eval_axion(ma::Real, ρa::Real, σv::Real, ex::Experiment, f::Real)
         counts = signal_counts_bin(f, ma*1e-6, ρa, σv, ex)
-        Power(f, counts, ex.t_int)
+        Power(counts, f, ex.t_int)
     end
     map(ff -> eval_axion(ma, ρa, σv, ex, ff), f)
 end

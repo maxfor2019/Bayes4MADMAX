@@ -229,6 +229,7 @@ function signal_counts(ma, rhoa, ex::Experiment; c::Constants=SeedConstants())
 end
 
 function signal_counts_bin(freqency, ma, rhoa, σ_v, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
+    σ_v *= 1e3 / c.c
     prefactor = signal_prefactor(rhoa, ma, ex; c=c, scaling=1.0) # 232 ns
     Eγ = freq(ma) * c.h_J # This can be assumed constant, since the width of the peak is very small compared to f_ref. Parts far away from peak are 0 anyways...
     # cdf part is integral over maxwell distribution. freq = data[1] are bin_centers

@@ -5,8 +5,8 @@
     I have no idea how this could work yet.
 """
 function ma_prior(data, kwargs)
-    fstart = kwargs.f_ref + minimum(data[1])
-    fend = kwargs.f_ref + maximum(data[1])
+    fstart = kwargs.f_ref + minimum(data[:,1])
+    fend = kwargs.f_ref + maximum(data[:,1])
     mstart = mass(fstart) .* 1e6
     mend = mass(fend) .* 1e6     
     return mstart..mend
@@ -27,18 +27,16 @@ Priors include
     E/N: MISSING!
     sig_v: DM velocity dispersion taken from 1209.0759
 """
-prior = NamedTupleDist(
-    b = [Normal(means[1], 5.0*abs(means[1])), Normal(means[2], 5.0*abs(means[2])), Normal(means[3], 5.0*abs(means[3])), Normal(means[4], 2.0*abs(means[4]))],
-    ma = ma_prior(data, options),
-    sig_v = Normal(model.σ_v, 6.0 * 1.0e3/c.c),
-    rhoa = rhoa_prior(model.rhoa+0.15)
-)
+#prior = NamedTupleDist(
+#    ma = ma_prior(data, options),
+#    sig_v = Normal(signal.σv,6.0),
+#    rhoa = rhoa_prior(signal.ρa+0.15)
+#)
 
-function make_prior(data, means, model, options;c::Constants=SeedConstants())
-    b = [Normal(means[1], 5.0*abs(means[1])), Normal(means[2], 5.0*abs(means[2])), Normal(means[3], 5.0*abs(means[3])), Normal(means[4], 2.0*abs(means[4]))]
+function make_prior(data, signal, options)
     ma = ma_prior(data, options)
-    sig_v = Normal(model.σ_v, 6.0 * 1.0e3/c.c)
-    rhoa = rhoa_prior(model.rhoa+0.15)
-    return NamedTupleDist(b=b, ma=ma, sig_v=sig_v, rhoa=rhoa)
+    sig_v = Normal(signal.σv,6.0)
+    rhoa = rhoa_prior(signal.ρa+0.15)
+    return NamedTupleDist(ma=ma, sig_v=sig_v, rhoa=rhoa)
 end
 

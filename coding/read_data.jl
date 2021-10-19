@@ -99,3 +99,13 @@ function dummy_data_right_signal(nuisance::NamedTuple{(:mu,:sigma)}, model::Name
     return data
 
 end
+
+"""
+    Construct an array of constant gaussian noise with a certain frequency range.
+"""
+function gaussian_noise(f_ini, f_fin, Δf; scale=1.0)
+    f_arr = collect(range(f_ini, f_fin, step=Δf))
+    noise_pow = rand(BAT.StandardMvNormal(length(f_arr))) * scale
+    noise = hcat(f_arr, noise_pow)
+    return noise
+end
