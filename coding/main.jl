@@ -105,8 +105,9 @@ run = Dict(
     "output" => output
 )
 
-FileIO.save("./data/samples/211019-test_noB_SN1.jld2", run)
-output = FileIO.load("./data/samples/211019-test_noB_SN1.jld2", "output")
+samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
+FileIO.save(samples_path*"211019-test_noB_SN1.jld2", run)
+output = FileIO.load(samples_path*"211019-test_noB_SN1.jld2", "output")
 
 samples = output.result
 # corner doesnt work anymore sadly
