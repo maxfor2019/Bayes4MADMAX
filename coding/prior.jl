@@ -13,11 +13,23 @@ function ma_prior(data, kwargs)
 end
 
 """
-    Rho prior. Later this should involve E/N and true DM uncertainty.
+    Rho prior. Later this should involve true DM uncertainty.
 """
 function rhoa_prior(rhoa_max)
     return 0.0..rhoa_max
 end
+
+"""
+    gaγγ prior.
+"""
+function gaγγ_prior(gag_range)
+    return LogUniform(gag_range[1],gag_range[2])
+end
+
+function log_gaγγ_prior(gag_range)
+    return Uniform(gag_range[1],gag_range[2])
+end
+
 
 """
 Priors include
@@ -33,10 +45,20 @@ Priors include
 #    rhoa = rhoa_prior(signal.ρa+0.15)
 #)
 
-function make_prior(data, signal, options)
+function make_prior(data, signal, options; pow=:rhoa)
     ma = ma_prior(data, options)
-    sig_v = Normal(signal.σv,6.0)
-    rhoa = rhoa_prior(signal.ρa+0.15)
-    return NamedTupleDist(ma=ma, sig_v=sig_v, rhoa=rhoa)
+    sig_v = Normal(signal.σ_v,6.0)
+    if pow==:rhoa
+        rhoa = rhoa_prior(signal.rhoa+0.15)
+        return NamedTupleDist(ma=ma, sig_v=sig_v, rhoa=rhoa)
+    elseif pow==:gaγγ # doesnt work
+        gag = gaγγ_prior([1e-30,1e-21])
+        return NamedTupleDist(ma=ma, sig_v=sig_v, gag=gag)
+    elseif pow==:loggaγγ
+        loggag = log_gaγγ_prior([-28,-19])
+        return NamedTupleDist(ma=ma, sig_v=sig_v, log_gag=loggag)
+    else
+        error("The specified keyword for pow does not exist! Use :rhoa, :gaγγ or :loggaγγ instead.")
+    end
 end
 

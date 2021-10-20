@@ -103,7 +103,7 @@ end
 
 """
 """
-function axion_forward_model(ma::Real, ρa::Real, σv::Real, ex::Experiment, f::Vector{Float64})
+function axion_forward_model(th::Theory, ex::Experiment, f::Vector{Float64})
     include("physics.jl")
     include("read_data.jl")
     include("custom_distributions.jl")
@@ -112,9 +112,9 @@ function axion_forward_model(ma::Real, ρa::Real, σv::Real, ex::Experiment, f::
     #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
     #σv *= 1.0e3/c.c
 
-    function eval_axion(ma::Real, ρa::Real, σv::Real, ex::Experiment, f::Real)
-        counts = signal_counts_bin(f, ma*1e-6, ρa, σv, ex)
+    function eval_axion(th::Theory, ex::Experiment, f::Real)
+        counts = signal_counts_bin(f, th, ex)
         Power(counts, f, ex.t_int)
     end
-    map(ff -> eval_axion(ma, ρa, σv, ex, ff), f)
+    map(ff -> eval_axion(th, ex, ff), f)
 end

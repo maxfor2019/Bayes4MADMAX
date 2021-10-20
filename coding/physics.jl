@@ -40,14 +40,15 @@ end
 """
     All relevant theoretical/ cosmological/ nature parameters.
 """
-struct Theory
+mutable struct Theory
     ma::Float64
     rhoa::Float64
+    EoverN::Float64
     σ_v::Float64
 end
 
-function SeedTheory(ma, rhoa, σ_v)
-    return Theory(ma, rhoa, σ_v)
+function Theory(;ma=45.501, rhoa=0.3, EoverN=0.924, σ_v=218.0)
+    return Theory(ma, rhoa, EoverN, σ_v)
 end
 
 """
@@ -147,9 +148,16 @@ function fa(ma)
     return 1e21 * (5.7064e-6/ma)
 end
 
-function gaγγ(fa, EoverN, c::Constants=SeedConstants())
-    αem = c.qe^2 / (4*pi* c.eps0 * c.hbar_J * c.c)
-    return αem / (2.0 * pi * fa) * abs(EoverN - 1.924)
+αem(c::Constants=SeedConstants()) = c.qe^2 / (4*pi* c.eps0 * c.hbar_J * c.c)
+
+function gaγγ(fa, EoverN) #::[eV^-1]
+    return αem() / (2.0 * pi * fa) * abs(EoverN - 1.924)
+end
+
+gag = gaγγ(fa(45e-6), 1.92401)
+
+function EoverN(fa, gaγγ, c::Constants=SeedConstants())
+    return - 2*pi * fa * gaγγ / αem() + 1.924
 end
 
 
@@ -185,27 +193,31 @@ function dvdω(ω, ma; c::Constants=SeedConstants()) #::[1/Hz]
     end
 end
 
-function signal_powerspectrum(ω, σ_v, rhoa, ma, ex::Experiment; c::Constants=SeedConstants()) #::[eV^2 1/Hz]
+function signal_powerspectrum(ω, th::Theory, ex::Experiment; c::Constants=SeedConstants()) #::[eV^2 1/Hz]
     # ω::[Hz]   
     # σ_v::[c]
     # rhoa::[GeV/cm^3]
     # ma::[eV]
+    ma = scale_ma(th.ma)
+    σ_v = scale_σv(th.σ_v)
 
     v = velocity.(ω, ma) # in []
 
-    prefactor = signal_prefactor(rhoa, ma, ex; c=c)
+    prefactor = signal_prefactor(th, ex; c=c)
     sp =  prefactor .* velocity_distribution(v, σ_v) .* dvdω.(ω, ma) #::[1e-27 J/s 1/Hz] (if scaling = 1e27)
     return sp  
 end
 
-function signal_prefactor(rhoa, ma, ex::Experiment; scaling=1e27, c::Constants=SeedConstants())
+function signal_prefactor(th::Theory, ex::Experiment; scaling=1e27, c::Constants=SeedConstants())
+    ma = scale_ma(th.ma)
+
     # convert rhoa from [GeV/cm^3] to [eV^4]
-    rhoa = rhoa * 1e9 * 1e6 * c.c^3.0 * c.hbar_eV^3.0
+    rhoa = th.rhoa * 1e9 * 1e6 * c.c^3.0 * c.hbar_eV^3.0
 
     # convert rhoa from [GeV/cm^3] to [eV^2/m^2]
     #rhoa = rhoa * 1e9 * 1e6 * c.c * c.hbar_eV
 
-    gag = gaγγ(fa(ma),0.924) # [eV^-1]
+    gag = gaγγ(fa(ma),th.EoverN) # [eV^-1]
 
     # convert Be from [T] to [eV^2]
     Be = ex.Be * sqrt(c.eps0 * c.c^5.0 * c.hbar_J^3.0) / c.qe^2.0 # 4 * pi * [eV^2]
@@ -221,22 +233,28 @@ end
 """
     Calculate number count of photons from signal (complete frequency range), assuming a fixed frequency of ma (i.e. v=0). Difference should not matter in the end, I hope!
 """
-function signal_counts(ma, rhoa, ex::Experiment; c::Constants=SeedConstants())
-    P_tot = signal_prefactor(rhoa, ma, ex; c=c, scaling=1.0)
+function signal_counts(th::Theory, ex::Experiment; c::Constants=SeedConstants())
+    ma = scale_ma(th.ma)
+    P_tot = signal_prefactor(th, ex; c=c, scaling=1.0)
     Eγ = freq(ma) * c.h_J
     Counts = P_tot / Eγ * ex.t_int
     return Counts
 end
 
-function signal_counts_bin(freqency, ma, rhoa, σ_v, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
-    σ_v *= 1e3 / c.c
-    prefactor = signal_prefactor(rhoa, ma, ex; c=c, scaling=1.0) # 232 ns
+function signal_counts_bin(freqency, th::Theory, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
+    ma = scale_ma(th.ma)
+    σ_v = scale_σv(th.σ_v)
+
+    prefactor = signal_prefactor(th, ex; c=c, scaling=1.0) # 232 ns
     Eγ = freq(ma) * c.h_J # This can be assumed constant, since the width of the peak is very small compared to f_ref. Parts far away from peak are 0 anyways...
     # cdf part is integral over maxwell distribution. freq = data[1] are bin_centers
-    Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .+ ex.Δω/2, ma)) .- cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .- ex.Δω/2,ma)))
+    Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .+ ex.Δω/2, ma)) .- cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .- ex.Δω/2, ma)))
     return Counts
 end
 
 function background_powerspectrum(ω, kwarg_dict)
     return pdf.(Normal(kwarg_dict.f_ref,1e6), ω) *0.0 #* 1e9
 end
+
+scale_ma(ma) = 1e-6 * ma
+scale_σv(σv,c::Constants=SeedConstants()) = σv * 1e3 / c.c

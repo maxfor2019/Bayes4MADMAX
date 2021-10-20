@@ -121,3 +121,57 @@ function Random.rand(rng::AbstractRNG, d::MaxwellBoltzmann{T}) where {T <: Real}
     res = sqrt(vsq)
     return res
 end
+
+
+
+
+
+"""
+    Reciprocal (log-e-uniform) distribution rudimentary implementation. (May be necessary to expand.)
+"""
+struct LogUniform{T <: AbstractFloat} <: Distribution{Univariate,Continuous}
+    min::Real
+    max::Real
+
+    μ::T
+    var::T
+    cov::Matrix{T}
+    σ::T
+end
+
+function LogUniform(min::Real, max::Real, T::DataType = Float64)
+    mean = (max - min) / log(max/min) 
+    var = (max^2 - min^2) / (2.0*log(max/min)) - mean^2
+
+    d::LogUniform{T} = LogUniform{T}(
+        min, max,
+        mean,
+        var,
+        fill(var, 1, 1),
+        sqrt(var)
+    )
+end
+
+function Distributions.pdf(d::LogUniform{T}, x::Real) where {T <: Real}
+    if d.min <= x <= d.max
+        return 1.0 / (x * log(d.max/d.min))
+    else
+        return 0.0
+    end
+end
+
+function Distributions.cdf(d::LogUniform{T}, x::Real) where {T <: Real} # 30 μs Dont broadcast if not absolutely necessary!
+    if x < d.min
+        return 0.0
+    elseif d.min <= x <= d.max
+        return log(x/d.min) / log(d.max/d.min)
+    else
+        return 1.0
+    end
+end
+
+function Random.rand(rng::AbstractRNG, d::LogUniform{T}) where {T <: Real}
+    x = rand(rng, Uniform(log(d.min),log(d.max)))
+    res = exp(x)
+    return res
+end
