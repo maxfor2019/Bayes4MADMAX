@@ -1,5 +1,6 @@
 println("Hello there!")
 
+
 # ToDo Liste
 
 # Get a better understanding of the background. I.e. implement realistic fit_function for background parameters
@@ -106,7 +107,7 @@ run = Dict(
 )
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-FileIO.save(samples_path*"211019-test_noB_SN1_loggag_full.jld2", run)
+#FileIO.save(samples_path*"211019-test_noB_SN1_loggag_full.jld2", run)
 input = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2", "input")
 data = input.data
 options = input.options
@@ -162,12 +163,16 @@ function produce_limit(mas, rhoas; frac=0.9)
     return bins_means, lims
 end
 
-bm, l = produce_limit(mas[1:end], loggags[1:end], frac=[0.68,0.95, 0.998])
-plot(bm, l[1])
-plot!(bm, l[2])
-plot!(bm, l[3])
+fracs = [0.68,0.95, 0.998]
+bm, l = produce_limit(mas[1:end], loggags[1:end], frac=fracs)
+vcat(1, l[1], 1)
+minimum(l, dims=1)
+plot_exclusion(bm,l, fracs; signal=signal)
+#mysavefig("211019-test_noB_SN1_loggag_full-limits")
 ylims!((minimum(l), maximum(l)))
-
+bm
+log10.(1e9*gaγγ.(fa.(bm*1e-6),0.667))
+plot()
 a = 0.9
 a[1]
 length(a[1])

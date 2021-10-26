@@ -16,7 +16,8 @@ function sig(freq, ex, options; gag=gag, ma=ma, vsig=vsig) # 80 μs
 end
 
 #fit_function(p::NamedTuple{(:ma, :sig_v, :rhoa,)}, freq, ex::Experiment, options) = sig(freq, ex, options; rhoa=p.rhoa, ma=p.ma, vsig=p.sig_v) #.+ background(p.b, freq)
-fit_function(p::NamedTuple{(:ma, :sig_v, :log_gag,)}, freq, ex::Experiment, options) = sig(freq, ex, options; gag=10.0^p.log_gag, ma=p.ma, vsig=p.sig_v) #.+ background(p.b, freq)
+#fit_function(p::NamedTuple{(:ma, :sig_v, :log_gag,)}, freq, ex::Experiment, options) = sig(freq, ex, options; gag=10.0^p.log_gag, ma=p.ma, vsig=p.sig_v) #.+ background(p.b, freq)
+fit_function(p::NamedTuple{(:ma, :sig_v, :gag,)}, freq, ex::Experiment, options) = sig(freq, ex, options; gag=p.gag, ma=p.ma, vsig=p.sig_v) #.+ background(p.b, freq)
 
 likelihood = let freqs=collect(data[:, 1]), observation=data[:, 2], f=fit_function, options=options, ex=ex
     function logl(pars) 

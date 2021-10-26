@@ -154,8 +154,6 @@ function gaγγ(fa, EoverN) #::[eV^-1]
     return αem() / (2.0 * pi * fa) * abs(EoverN - 1.924)
 end
 
-gag = gaγγ(fa(45e-6), 1.92401)
-
 function EoverN(fa, gaγγ, c::Constants=SeedConstants())
     return - 2*pi * fa * gaγγ / αem() + 1.924
 end

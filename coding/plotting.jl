@@ -110,6 +110,27 @@ function plot_data(data; label="", savefig=nothing)
     #plot!()
 end
 
+function plot_exclusion(mass_bins, exclusion, fracs; signal=nothing)
+    plot()
+    plot( mass_bins, exclusion[1].+9.0, fillrange=fill(-13.0,length(exclusion)), fillalpha=0.35, label=string(fracs[1]))
+    if size(exclusion)[1] > 1
+        for i in 2:size(exclusion)[1]
+            plot!(mass_bins, exclusion[i].+9.0, fillrange=fill(-13.0,length(exclusion)), fillalpha=0.35, label=string(fracs[i]))
+        end
+    end
+
+    plot!(mass_bins, log10.(1e9*gaγγ.(fa.(mass_bins*1e-6),8.0/3.0)), label="E/N = 8/3", linewidth=3, ls=:dash)
+    if signal !== nothing
+        scatter!([signal.ma], [log10.(1e9*gaγγ.(fa.(signal.ma*1e-6),signal.EoverN))], label="signal")
+    end
+    xlabel!(L"m_a\;[\mu \textrm{eV}]")
+    ylabel!(L"\log (g_{a\gamma\gamma})\;[GeV^{-1}]")
+    plot!()
+    #mysavefig(savefig)
+end
+
+
+
 function mysavefig(name; index=nothing, path="data/plots/", form=".pdf")
     if name !== nothing
         if index !== nothing
