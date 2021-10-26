@@ -20,6 +20,88 @@ include("read_data.jl")
 include("plotting.jl")
 include("forward_models.jl")
 
+names_list = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
+data = combine_data(names_list)
+
+stacks =  []
+for i in 1:256
+    try
+        append!(stacks, [data[96*i-95:1:96*(i+1)-86,2]])
+    catch
+        append!(stacks, [data[96*i-105:1:96*(i+1)-96,2]])
+    end
+end
+stacks[1]
+plot()
+for stack in stacks
+    plot!(stack)
+end
+plot!()
+
+using Polynomials
+function fit_background(stack)
+    f1 = Polynomials.fit(1:length(stack), stack, 3)
+    return residual = f1.(1:length(stack))-stack
+end
+
+residuals = fit_background.(stacks)
+
+plot(residuals[180])
+ylims!((minimum(residuals[180]),maximum(residuals[180])))
+mean(residuals[113])
+n = [std(residual) for residual in residuals]
+minimum(n)
+plot(n[179:185])
+ylims!(minimum(n),maximum(n))
+
+function ma_prior(data, kwargs)
+    fstart = kwargs.f_ref + minimum(data[:,1])
+    fend = kwargs.f_ref + maximum(data[:,1])
+    mstart = mass(fstart) .* 1e6
+    mend = mass(fend) .* 1e6   
+    return Uniform(mstart,mend)
+end
+
+include("physics.jl")
+c = SeedConstants()
+σ_v = 218.0* 1.0e3/c.c
+model = (ma=45.49366806966277, rhoa=0.3, σ_v=σ_v)
+
+ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=50.0, Δω=2e3) # careful not to accidentally ignore a few of the relevant parameters!
+options=(
+    # reference frequency
+    f_ref = 11.0e9,
+    scale_ω = 1e-5,
+)
+fs = 0.0:0.02:2.1 
+length(fs)
+fs /= options.scale_ω
+fs[2]-fs[1]
+length(fs)
+
+data = hcat(fs,residuals[1])
+prior = NamedTupleDist(
+    ma = ma_prior(data, options),
+    sig_v = Normal(model.σ_v, 6.0 * 1.0e3/c.c),
+    rhoa = Uniform(0.0,0.45)
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 data = gaussian_noise(1e6,20e6,2.034e3,scale=18.9e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
