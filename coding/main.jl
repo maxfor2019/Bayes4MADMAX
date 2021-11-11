@@ -98,11 +98,7 @@ prior = NamedTupleDist(
 
 
 
-
-
-
-
-data = gaussian_noise(1e6,20e6,2.034e3,scale=18.9e-24)
+data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
 
@@ -143,7 +139,7 @@ vals += ax
 data = hcat(rel_freqs,vals)
 data = data[1:700,:]
 
-maximum(ax)/18.9e-24#std(data[:,2])
+maximum(ax)/9.4e-24#std(data[:,2])
 
 
 plot(data[:,1],data[:,2])
@@ -154,7 +150,7 @@ include("likelihood.jl")
 
 prior = make_prior(data, signal, options,pow=:loggaγγ)
 
-truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
+truth = (ma=signal.ma, sig_v=signal.σ_v, gag=gaγγ(fa(scale_ma(signal.ma)),signal.EoverN))
 println("truth = $truth")
 plot_truths(truth,data,ex, options)
 
@@ -165,12 +161,12 @@ likelihood(truth)
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
-sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=2))
+sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100))
 #sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
 
-@time output = bat_sample(posterior, sampling)
+@time out = bat_sample(posterior, sampling)
 
 input = (
     data=data,
@@ -183,14 +179,14 @@ input = (
     MCMCsampler=sampling
 )
 
-run = Dict(
+run2 = Dict(
     "input" => input,
-    "output" => output
+    "samples" => out.result
 )
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-#FileIO.save(samples_path*"211019-test_noB_SN1_loggag_full.jld2", run)
-input = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2", "input")
+FileIO.save(samples_path*"211104-test_noB_SN2_loggag_full.jld2", run2)
+input = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "input")
 data = input.data
 options = input.options
 ex=input.ex
@@ -199,17 +195,24 @@ prior=input.prior
 signal=input.signal
 posterior=input.posterior
 sampling = input.MCMCsampler
+signal.rhoa
+run = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2")
 
-run = FileIO.load(samples_path*"211018-test_noB_hugeS.jld2")
+samples = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "samples")
+#sampleslg = FileIO.load(samples_path*"211027-test_noB_SN1_loggag_full.jld2", "samples")
 
-output = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2", "output")
+samples = out.result
 
-
-samples = output.result
-# corner doesnt work anymore sadly
-# corner(samples, 5:7, modify=false, truths=[m_true, σ_v, rhoa_true], savefig=nothing)
-plot(samples)
 #mysavefig("211019-test_noB_SN1_loggag_full")
+samples.v[1]
+samples2 = deepcopy(samples)
+samples2.v[1] = (ma=samples.v[1][:ma], sig_v=samples.v[1][:sig_v], gag=samples.v[1][:gag])
+samples2
+
+for i in 1:length(samples.v)
+    samples2.v[i] = (ma=samples.v[i][:ma], sig_v=samples.v[i][:sig_v], gag=samples.v[i][:gag]*1e24)
+end
+plot(samples)
 
 println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
@@ -226,9 +229,16 @@ plot(data[!,1], f1.(data[!,1].*kwarg_dict[:scale_ω]))
 plot!(data[!,1], data[!,2])
 =#
 
+samples = FileIO.load(samples_path*"211027-test_noB_SN1_gag_full.jld2", "samples")
+sampleslg = FileIO.load(samples_path*"211027-test_noB_SN1_loggag_full.jld2", "samples")
 
-us = unshaped.(samples.v)
-loggags = [us[i][3] for i in 1:length(us)]
+
+uslg = unshaped.(sampleslg.v)
+lggags = [uslg[i][3] for i in 1:length(uslg)]
+maslg = [uslg[i][1] for i in 1:length(uslg)]
+
+us = unshaped.(samples2.v)
+gags = [us[i][3] for i in 1:length(us)]
 mas = [us[i][1] for i in 1:length(us)]
 
 function produce_limit(mas, rhoas; frac=0.9)
@@ -246,10 +256,20 @@ function produce_limit(mas, rhoas; frac=0.9)
 end
 
 fracs = [0.68,0.95, 0.998]
-bm, l = produce_limit(mas[1:end], loggags[1:end], frac=fracs)
+bm, l = produce_limit(mas[1:end], gags[1:end], frac=fracs)
+bmlg, llg = produce_limit(maslg[1:end], lggags[1:end], frac=fracs)
+bm-bmlg
 vcat(1, l[1], 1)
 minimum(l, dims=1)
-plot_exclusion(bm,l, fracs; signal=signal)
+fracstot = vcat(fracs,fracs)
+bmtot = vcat
+println(l)
+lrescale = [log10.(1e-24.*l[i]) for i in 1:length(l)]
+ltot = vcat(lrescale,llg)
+plot_exclusion(bm, ltot, fracstot; signal=signal)
+plot_exclusion2(bm, llg, lrescale, fracs,fracs; signal=signal)
+
+
 #mysavefig("211019-test_noB_SN1_loggag_full-limits")
 ylims!((minimum(l), maximum(l)))
 bm
@@ -258,3 +278,28 @@ plot()
 a = 0.9
 a[1]
 length(a[1])
+
+
+
+
+
+
+using HDF5
+######## LOAD BACKGROUND AND NOISE #########
+
+bg_fit_results = h5open("data/background_fit.h5", "r") do file
+    read(file)
+end
+bg_fit_results
+noise_stds = bg_fit_results["n"]
+harmonic_noise_vars = noise_stds.^2*2*dims[1]
+offsets = bg_fit_results["offset"]
+slopes = bg_fit_results["slope"]
+zero_modes = bg_fit_results["zero_mode"]
+
+bg_fit_results["background"][:,1]
+plot(bg_fit_results["background"][:,1] .+ bg_fit_results["zero_mode"][1])
+vals = (data[:,2].-mean(data[:,2])) ./ std(data[:,2])
+scatter(data[1000:1100,1], vals[1000:1100])
+plot!(data[1000:1100,1],bg_fit_results["background"][1000:1100,1])
+plot(data[:,1], vals - bg_fit_results["background"][:,1])

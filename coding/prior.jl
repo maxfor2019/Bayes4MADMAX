@@ -52,7 +52,7 @@ function make_prior(data, signal, options; pow=:rhoa)
         rhoa = rhoa_prior(signal.rhoa+0.15)
         return NamedTupleDist(ma=ma, sig_v=sig_v, rhoa=rhoa)
     elseif pow==:gaγγ
-        gag = gaγγ_prior([0,1e-21])
+        gag = gaγγ_prior([0,1e-19])
         return NamedTupleDist(ma=ma, sig_v=sig_v, gag=gag)
     elseif pow==:loggaγγ
         loggag = log_gaγγ_prior([-28,-19])
