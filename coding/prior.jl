@@ -55,7 +55,7 @@ function make_prior(data, signal, options; pow=:rhoa)
         gag = gaγγ_prior([0,1e-19])
         return NamedTupleDist(ma=ma, sig_v=sig_v, gag=gag)
     elseif pow==:loggaγγ
-        loggag = log_gaγγ_prior([-28,-19])
+        loggag = log_gaγγ_prior([-26,-19])
         return NamedTupleDist(ma=ma, sig_v=sig_v, log_gag=loggag)
     else
         error("The specified keyword for pow does not exist! Use :rhoa, :gaγγ or :loggaγγ instead.")

@@ -132,23 +132,23 @@ end
 
 function plot_exclusion2(mass_bins, exclusion, exclusion2, fracs, fracs2; signal=nothing)
     plot()
-    plot(mass_bins, exclusion[1].+9.0, fillrange=fill(-13.0,length(exclusion)), fillalpha=0.35, label=L"log ga\gamma\gamma"*string(fracs2[1]),c=:red, legend=:bottomright,ls=:dot)
-    plot!(mass_bins, exclusion2[1].+9.0, fillrange=fill(-13.0,length(exclusion2)), fillalpha=0.0, label=L"$ga\gamma\gamma$"*string(fracs2[1]),c=:red)
+    plot(mass_bins, exclusion[1].+9.0, fillrange=fill(-13.0,length(exclusion)), fillalpha=0.35, label="prior -28 "*string(fracs2[1]),c=:red, legend=:bottomright,ls=:dot)
+    plot!(mass_bins, exclusion2[1].+9.0, fillrange=fill(-13.0,length(exclusion2)), fillalpha=0.0, label="prior -26 "*string(fracs2[1]),c=:red, lw=2)
     cs = [:blue,:green]
     if size(exclusion)[1] > 1
         for i in 2:size(exclusion)[1]
-            plot!(mass_bins, exclusion[i].+9.0, fillrange=fill(-13.0,length(exclusion)), fillalpha=0.35, label=L"log ga\gamma\gamma"*string(fracs[i]),c=cs[i-1],ls=:dot)
-            plot!(mass_bins, exclusion2[i].+9.0, fillrange=fill(-13.0,length(exclusion2)), fillalpha=0.0, label=L"ga\gamma\gamma"*string(fracs[i]),c=cs[i-1])
+            plot!(mass_bins, exclusion[i].+9.0, fillrange=fill(-13.0,length(exclusion)), fillalpha=0.35, label="prior -28 "*string(fracs[i]),c=cs[i-1],ls=:dot)
+            plot!(mass_bins, exclusion2[i].+9.0, fillrange=fill(-13.0,length(exclusion2)), fillalpha=0.0, label="prior -26 "*string(fracs[i]),c=cs[i-1], lw=2)
         end
     end
 
     # E/N = 0.97 for KSVZ and 0.36 for DFSZ according to Haystac Palken et al
-    plot!(mass_bins, log10.(1e9*gaγγ.(fa.(mass_bins*1e-6),5.0/3.0)), label="E/N = 5/3", linewidth=3, ls=:dash, c=:black)
-    if signal !== nothing
-        scatter!([signal.ma], [log10.(1e9*gaγγ.(fa.(signal.ma*1e-6),signal.EoverN))], label="signal")
-    end
-    xlabel!(L"m_a\;[\mu \textrm{eV}]")
-    ylabel!(L"\log (g_{a\gamma\gamma})\;[GeV^{-1}]")
+    #plot!(mass_bins, log10.(1e9*gaγγ.(fa.(mass_bins*1e-6),5.0/3.0)), label="E/N = 5/3", linewidth=3, ls=:dash, c=:black)
+    #if signal !== nothing
+    #    scatter!([signal.ma], [log10.(1e9*gaγγ.(fa.(signal.ma*1e-6),signal.EoverN))], label="signal")
+    #end
+    #xlabel!(L"m_a\;[\mu \textrm{eV}]")
+    #ylabel!(L"\log (g_{a\gamma\gamma})\;[GeV^{-1}]")
     plot!()
     #mysavefig(savefig)
 end

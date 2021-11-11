@@ -231,13 +231,14 @@ plot!(data[!,1], data[!,2])
 
 samples = FileIO.load(samples_path*"211027-test_noB_SN1_gag_full.jld2", "samples")
 sampleslg = FileIO.load(samples_path*"211027-test_noB_SN1_loggag_full.jld2", "samples")
-
+input = FileIO.load(samples_path*"211027-test_noB_SN1_gag_full.jld2", "input")
+signal=input.signal
 
 uslg = unshaped.(sampleslg.v)
 lggags = [uslg[i][3] for i in 1:length(uslg)]
 maslg = [uslg[i][1] for i in 1:length(uslg)]
 
-us = unshaped.(samples2.v)
+us = unshaped.(samples.v)
 gags = [us[i][3] for i in 1:length(us)]
 mas = [us[i][1] for i in 1:length(us)]
 
@@ -258,18 +259,13 @@ end
 fracs = [0.68,0.95, 0.998]
 bm, l = produce_limit(mas[1:end], gags[1:end], frac=fracs)
 bmlg, llg = produce_limit(maslg[1:end], lggags[1:end], frac=fracs)
-bm-bmlg
-vcat(1, l[1], 1)
-minimum(l, dims=1)
 fracstot = vcat(fracs,fracs)
-bmtot = vcat
-println(l)
-lrescale = [log10.(1e-24.*l[i]) for i in 1:length(l)]
+lrescale = [log10.(l[i]) for i in 1:length(l)]
 ltot = vcat(lrescale,llg)
 plot_exclusion(bm, ltot, fracstot; signal=signal)
 plot_exclusion2(bm, llg, lrescale, fracs,fracs; signal=signal)
-
-
+llg
+lrescale
 #mysavefig("211019-test_noB_SN1_loggag_full-limits")
 ylims!((minimum(l), maximum(l)))
 bm
@@ -290,7 +286,12 @@ using HDF5
 bg_fit_results = h5open("data/background_fit.h5", "r") do file
     read(file)
 end
-bg_fit_results
+
+bg_fit_results2 = h5open("data/background_fit_2.h5", "r") do file
+    read(file)
+end
+
+bg_fit_results == bg_fit_results2
 noise_stds = bg_fit_results["n"]
 harmonic_noise_vars = noise_stds.^2*2*dims[1]
 offsets = bg_fit_results["offset"]
