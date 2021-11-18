@@ -92,19 +92,29 @@ prior = NamedTupleDist(
 
 
 
+names_list = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
+data = combine_data(names_list)
 
+using HDF5
+######## LOAD BACKGROUND AND NOISE #########
 
+bg_fit_results = h5open("data/background_fit.h5", "r") do file
+    read(file)
+end
 
+noise_stds = bg_fit_results["noise_std"]
+mean_bg_fit = sum(bg_fit_results["background"],dims=2)/size(bg_fit_results["background"],2)
 
+data[20:24556,2] = deepcopy(data[20:24556,2]) .- mean_bg_fit[20:24556]
+data = data[20:24556,:]
 
-
-data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
+#data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
 
 options=(
     # reference frequency
-    f_ref = 11.0e9,
+    f_ref = 11.0e9+20.0*2.034e3,
 )
 
 Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
@@ -137,7 +147,7 @@ signal = Theory(
 ax = my_axion(signal)
 vals += ax
 data = hcat(rel_freqs,vals)
-data = data[1:700,:]
+#data = data[1:700,:]
 
 maximum(ax)/9.4e-24#std(data[:,2])
 
@@ -150,10 +160,10 @@ include("likelihood.jl")
 
 prior = make_prior(data, signal, options,pow=:loggaγγ)
 
-truth = (ma=signal.ma, sig_v=signal.σ_v, gag=gaγγ(fa(scale_ma(signal.ma)),signal.EoverN))
+truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
 println("truth = $truth")
 plot_truths(truth,data,ex, options)
-
+xlims!((1.5e6,2.5e6))
 posterior = PosteriorDensity(likelihood, prior)
 
 
@@ -185,7 +195,7 @@ run2 = Dict(
 )
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-FileIO.save(samples_path*"211104-test_noB_SN2_loggag_full.jld2", run2)
+FileIO.save(samples_path*"211118-mgvi_loggag_badposition.jld2", run2)
 input = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "input")
 data = input.data
 options = input.options
@@ -217,7 +227,7 @@ plot(samples)
 println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
-xlims!((2e6,2.3e6))
+xlims!((2e6,2.5e6))
 #mysavefig("211019-test_noB_SN1_loggag_full-fit-peak")
 #= If you want to get sensible values for the coefficients
 using Polynomials
@@ -287,20 +297,18 @@ bg_fit_results = h5open("data/background_fit.h5", "r") do file
     read(file)
 end
 
-bg_fit_results2 = h5open("data/background_fit_2.h5", "r") do file
-    read(file)
-end
+noise_stds = bg_fit_results["noise_std"]
+bg_fit_results["background"]
 
-bg_fit_results == bg_fit_results2
-noise_stds = bg_fit_results["n"]
-harmonic_noise_vars = noise_stds.^2*2*dims[1]
-offsets = bg_fit_results["offset"]
-slopes = bg_fit_results["slope"]
-zero_modes = bg_fit_results["zero_mode"]
-
-bg_fit_results["background"][:,1]
-plot(bg_fit_results["background"][:,1] .+ bg_fit_results["zero_mode"][1])
+plot(bg_fit_results["background"][:,1]*1e19)
+plot(data[:,2]*1e19)
 vals = (data[:,2].-mean(data[:,2])) ./ std(data[:,2])
 scatter(data[1000:1100,1], vals[1000:1100])
 plot!(data[1000:1100,1],bg_fit_results["background"][1000:1100,1])
-plot(data[:,1], vals - bg_fit_results["background"][:,1])
+mean_bg_fit = sum(bg_fit_results["background"],dims=2)/40
+plot(data[:,1], 1e19*(data[:,2] - bg_fit_results["background"][:,30]))
+b = 20
+e=24556
+b=14000
+e=15000
+plot(data[b:e,1], 1e19*(data[b:e,2] - mean_bg_fit[b:e]))
