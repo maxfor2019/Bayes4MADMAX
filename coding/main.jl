@@ -138,9 +138,9 @@ end
 # signal is roughly at 11e9+18e5 Hz for this mass value
 # ma + 0.001 shifts the signal roughly by 4e5 Hz
 signal = Theory(
-    ma=45.501, 
+    ma=45.502, 
     rhoa=0.3,
-    EoverN=0.924,
+    EoverN=1.1,
     σ_v=218.0
 )
 
@@ -171,7 +171,7 @@ likelihood(truth)
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
-sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100))
+sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=300))
 #sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
@@ -195,7 +195,7 @@ run2 = Dict(
 )
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-FileIO.save(samples_path*"211118-mgvi_loggag_badposition.jld2", run2)
+FileIO.save(samples_path*"211122-mgvi_loggag_smaller.jld2", run2)
 input = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "input")
 data = input.data
 options = input.options
@@ -208,7 +208,7 @@ sampling = input.MCMCsampler
 signal.rhoa
 run = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2")
 
-samples = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "samples")
+samples = FileIO.load(samples_path*"211122-mgvi_loggag_smaller.jld2", "samples")
 #sampleslg = FileIO.load(samples_path*"211027-test_noB_SN1_loggag_full.jld2", "samples")
 
 samples = out.result
@@ -227,8 +227,8 @@ plot(samples)
 println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
-xlims!((2e6,2.5e6))
-#mysavefig("211019-test_noB_SN1_loggag_full-fit-peak")
+xlims!((48e6,51e6))
+mysavefig("211122-mgvi_loggag_smaller")
 #= If you want to get sensible values for the coefficients
 using Polynomials
 
