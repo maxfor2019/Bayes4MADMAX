@@ -285,7 +285,7 @@ a = 0.9
 a[1]
 length(a[1])
 
-
+ 
 
 
 
@@ -293,7 +293,7 @@ length(a[1])
 using HDF5
 ######## LOAD BACKGROUND AND NOISE #########
 
-bg_fit_results = h5open("data/background_fit.h5", "r") do file
+bg_fit_results = h5open("data/bg_fits/background_fit.h5", "r") do file
     read(file)
 end
 
@@ -301,14 +301,14 @@ noise_stds = bg_fit_results["noise_std"]
 bg_fit_results["background"]
 
 plot(bg_fit_results["background"][:,1]*1e19)
-plot(data[:,2]*1e19)
+plot!(data[:,2]*1e19)
 vals = (data[:,2].-mean(data[:,2])) ./ std(data[:,2])
 scatter(data[1000:1100,1], vals[1000:1100])
 plot!(data[1000:1100,1],bg_fit_results["background"][1000:1100,1])
 mean_bg_fit = sum(bg_fit_results["background"],dims=2)/40
-plot(data[:,1], 1e19*(data[:,2] - bg_fit_results["background"][:,30]))
-b = 20
+plot(data[:,1], 1e19*(data[:,2] - mean_bg_fit))
+b = 100
 e=24556
-b=14000
-e=15000
+b=2500
+e=3000
 plot(data[b:e,1], 1e19*(data[b:e,2] - mean_bg_fit[b:e]))
