@@ -102,19 +102,42 @@ bg_fit_results = h5open("data/bg_fits/211201-background_fit.h5", "r") do file
     read(file)
 end
 
-noise_stds = bg_fit_results["noise_std"]
+#noise_stds = bg_fit_results["noise_std"]
 mean_bg_fit = sum(bg_fit_results["background"],dims=2)/size(bg_fit_results["background"],2)
 
-data[20:24556,2] = deepcopy(data[20:24556,2]) .- mean_bg_fit[20:24556]
-data = data[20:24556,:]
+b=400
+e=24476
+scale = mean(data[:,2])
+rdata1 = deepcopy(data)
+rdata1[b:e,2] = (deepcopy(data[b:e,2]) .- mean_bg_fit[b:e])./scale
+rdata1 = rdata1[b:e,:]
+
+rdata2 = deepcopy(data)
+rdata2[:,2] ./= scale
+sg = savitzky_golay(rdata2[:,2], 201, 6)
+rdata2 = rdata2[b:e,:]
+fit = sg.y[b:e]
+rdata2[:,2] = rdata2[:,2] -fit
+rdata2[:,2] .-= mean(rdata2[:,2])
+
+plot(rdata2[:,1], rdata2[:,2]-rdata1[:,2], alpha=0.7)
+plot!(rdata1[:,1], rdata1[:,2], alpha=0.7)
+xlims!((5e6,5.5e6))
+
+mean(rdata1[:,2])
+mean(rdata2[:,2])
+std(rdata1[:,2])
+std(rdata2[:,2])
 
 #data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
 
+# will have to cut half of the SG length
+
 options=(
     # reference frequency
-    f_ref = 11.0e9+20.0*2.034e3,
+    f_ref = 11.0e9+b*2.034e3,
 )
 
 Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
@@ -138,9 +161,9 @@ end
 # signal is roughly at 11e9+18e5 Hz for this mass value
 # ma + 0.001 shifts the signal roughly by 4e5 Hz
 signal = Theory(
-    ma=45.502, 
+    ma=45.517, 
     rhoa=0.3,
-    EoverN=1.1,
+    EoverN=0.1,
     σ_v=218.0
 )
 
@@ -148,12 +171,32 @@ ax = my_axion(signal)
 vals += ax
 data = hcat(rel_freqs,vals)
 #data = data[1:700,:]
+#maximum(ax)/9.4e-24#std(data[:,2])
 
-maximum(ax)/9.4e-24#std(data[:,2])
-
+rdata = deepcopy(data)
+scale = mean(rdata[:,2])
+rdata[:,2] ./= scale
 
 plot(data[:,1],data[:,2])
 ylims!((minimum(data[:,2]),maximum(data[:,2])))
+std(data[:,2]./scale)
+mean(data[:,2]./scale)
+sg = savitzky_golay(rdata[:,2], 201, 6)
+
+rdata = deepcopy(rdata[b:e,:])
+fit = sg.y[b:e]
+
+plot(rdata[:,1], rdata[:,2])
+plot!(rdata[:,1], fit)
+plot(rdata[:,1], rdata[:,2]-fit)
+xlims!((5e6,6e6))
+
+mean(rdata[:,2]-fit)
+std(rdata[:,2]-fit)
+
+data = deepcopy(rdata)
+data[:,2] .*= scale
+
 
 include("prior.jl")
 include("likelihood.jl")
@@ -163,7 +206,7 @@ prior = make_prior(data, signal, options,pow=:loggaγγ)
 truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
 println("truth = $truth")
 plot_truths(truth,data,ex, options)
-xlims!((1.5e6,2.5e6))
+xlims!((4.5e6,5.5e6))
 posterior = PosteriorDensity(likelihood, prior)
 
 
@@ -171,12 +214,13 @@ likelihood(truth)
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
-sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=300))
+sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100))
 #sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
 
 @time out = bat_sample(posterior, sampling)
+
 
 input = (
     data=data,
@@ -195,7 +239,7 @@ run2 = Dict(
 )
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-FileIO.save(samples_path*"211122-mgvi_loggag_smaller.jld2", run2)
+FileIO.save(samples_path*"211202-mgvi_loggag_newfit.jld2", run2)
 input = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "input")
 data = input.data
 options = input.options
@@ -208,7 +252,7 @@ sampling = input.MCMCsampler
 signal.rhoa
 run = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2")
 
-samples = FileIO.load(samples_path*"211122-mgvi_loggag_smaller.jld2", "samples")
+samples = FileIO.load(samples_path*"211202-mgvi_loggag_newfit.jld2", "samples")
 #sampleslg = FileIO.load(samples_path*"211027-test_noB_SN1_loggag_full.jld2", "samples")
 
 samples = out.result
@@ -227,8 +271,8 @@ plot(samples)
 println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
-xlims!((48e6,51e6))
-mysavefig("211122-mgvi_loggag_smaller")
+xlims!((5e6,5.5e6))
+mysavefig("211202-mgvi_loggag_newfit")
 #= If you want to get sensible values for the coefficients
 using Polynomials
 
