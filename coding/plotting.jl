@@ -92,7 +92,7 @@ end
 function plot_truths(truths, data, ex, kwargs; savefig=nothing)
     plot_data(data)
     plot!(data[:, 1], fit_function(truths,data[:, 1],ex, kwargs))
-    ylims!((minimum(data[:,2]),maximum(data[:,2])))
+    ylims!((minimum(data[:,2]),maximum(data[:,2]*1.2)))
     mysavefig(savefig)
     #xlabel!("\$ f - f_{ref} \$")
     #ylabel!("P*1e-23")

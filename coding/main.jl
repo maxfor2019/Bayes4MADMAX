@@ -98,7 +98,7 @@ data = combine_data(names_list)
 using HDF5
 ######## LOAD BACKGROUND AND NOISE #########
 
-bg_fit_results = h5open("data/background_fit.h5", "r") do file
+bg_fit_results = h5open("data/bg_fits/211201-background_fit.h5", "r") do file
     read(file)
 end
 
@@ -293,7 +293,7 @@ length(a[1])
 using HDF5
 ######## LOAD BACKGROUND AND NOISE #########
 
-bg_fit_results = h5open("data/bg_fits/background_fit.h5", "r") do file
+bg_fit_results = h5open("data/bg_fits/211201-background_fit.h5", "r") do file
     read(file)
 end
 
@@ -307,8 +307,8 @@ scatter(data[1000:1100,1], vals[1000:1100])
 plot!(data[1000:1100,1],bg_fit_results["background"][1000:1100,1])
 mean_bg_fit = sum(bg_fit_results["background"],dims=2)/40
 plot(data[:,1], 1e19*(data[:,2] - mean_bg_fit))
-b = 100
-e=24556
+b = 400
+e=24476
 b=2500
 e=3000
 plot(data[b:e,1], 1e19*(data[b:e,2] - mean_bg_fit[b:e]))
