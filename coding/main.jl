@@ -129,6 +129,7 @@ mean(rdata2[:,2])
 std(rdata1[:,2])
 std(rdata2[:,2])
 
+
 #data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
@@ -163,7 +164,7 @@ end
 signal = Theory(
     ma=45.517, 
     rhoa=0.3,
-    EoverN=0.1,
+    EoverN=0.5,
     σ_v=218.0
 )
 
@@ -173,30 +174,8 @@ data = hcat(rel_freqs,vals)
 #data = data[1:700,:]
 #maximum(ax)/9.4e-24#std(data[:,2])
 
-rdata = deepcopy(data)
-scale = mean(rdata[:,2])
-rdata[:,2] ./= scale
-
-plot(data[:,1],data[:,2])
-ylims!((minimum(data[:,2]),maximum(data[:,2])))
-std(data[:,2]./scale)
-mean(data[:,2]./scale)
-sg = savitzky_golay(rdata[:,2], 201, 6)
-
-rdata = deepcopy(rdata[b:e,:])
-fit = sg.y[b:e]
-
-plot(rdata[:,1], rdata[:,2])
-plot!(rdata[:,1], fit)
-plot(rdata[:,1], rdata[:,2]-fit)
-xlims!((5e6,6e6))
-
-mean(rdata[:,2]-fit)
-std(rdata[:,2]-fit)
-
-data = deepcopy(rdata)
+data = rdata2
 data[:,2] .*= scale
-
 
 include("prior.jl")
 include("likelihood.jl")
