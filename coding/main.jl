@@ -23,6 +23,54 @@ include("forward_models.jl")
 names_list = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
 data = combine_data(names_list)
 
+rel_freqs = data[:,1]
+vals = data[:,2]
+
+options=(
+    # reference frequency
+    f_ref = 11.0e9+2.034e3,
+)
+
+Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
+freqs = rel_freqs .+ options.f_ref
+
+ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δfreq) # careful not to accidentally ignore a few of the relevant parameters!
+
+my_axion = let f = freqs, ex = ex
+    function ax(parameters)
+        sig = axion_forward_model(parameters, ex, f)
+        if maximum(sig) > 0.0
+            nothing
+        else
+            error("The specified axion model is not within the frequency range of your data. Fiddle around with signal.ma or options.f_ref!")
+        end
+        return sig
+    end
+
+end
+
+# signal is roughly at 11e9+18e5 Hz for this mass value
+# ma + 0.001 shifts the signal roughly by 4e5 Hz
+signal = Theory(
+    ma=45.517, 
+    rhoa=0.3,
+    EoverN=0.5, # 1.92 produces no signal, the further away the bigger the signal
+    σ_v=218.0
+)
+
+ax = my_axion(signal)
+vals += ax
+data = hcat(rel_freqs,vals)
+
+ddict = Dict(
+    "data" => data
+)
+
+FileIO.save("data/tmp/dataWaxion.jld2", ddict)
+
+
+
+
 stacks =  []
 for i in 1:256
     try
@@ -120,9 +168,9 @@ fit = sg.y[b:e]
 rdata2[:,2] = rdata2[:,2] -fit
 rdata2[:,2] .-= mean(rdata2[:,2])
 
-plot(rdata2[:,1], rdata2[:,2]-rdata1[:,2], alpha=0.7)
+plot(rdata2[:,1], rdata2[:,2], alpha=0.7)
 plot!(rdata1[:,1], rdata1[:,2], alpha=0.7)
-xlims!((5e6,5.5e6))
+xlims!((5e6,7e6))
 
 mean(rdata1[:,2])
 mean(rdata2[:,2])
