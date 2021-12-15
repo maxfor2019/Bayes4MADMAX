@@ -45,10 +45,11 @@ mutable struct Theory
     rhoa::Float64
     EoverN::Float64
     σ_v::Float64
+    vlab::Float64
 end
 
-function Theory(;ma=45.501, rhoa=0.3, EoverN=0.924, σ_v=218.0)
-    return Theory(ma, rhoa, EoverN, σ_v)
+function Theory(;ma=45.501, rhoa=0.3, EoverN=0.924, σ_v=218.0, vlab=242.1)
+    return Theory(ma, rhoa, EoverN, σ_v, vlab)
 end
 
 """
@@ -239,7 +240,7 @@ function signal_counts(th::Theory, ex::Experiment; c::Constants=SeedConstants())
     return Counts
 end
 
-function signal_counts_bin(freqency, th::Theory, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
+function signal_counts_bin_old(freqency, th::Theory, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
     ma = scale_ma(th.ma)
     σ_v = scale_σv(th.σ_v)
 
@@ -247,6 +248,18 @@ function signal_counts_bin(freqency, th::Theory, ex::Experiment; c::Constants=Se
     Eγ = freq(ma) * c.h_J # This can be assumed constant, since the width of the peak is very small compared to f_ref. Parts far away from peak are 0 anyways...
     # cdf part is integral over maxwell distribution. freq = data[1] are bin_centers
     Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .+ ex.Δω/2, ma)) .- cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .- ex.Δω/2, ma)))
+    return Counts
+end
+
+function signal_counts_bin(frequency, th::Theory, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
+    ma = scale_ma(th.ma)
+    σ_v = scale_σv(th.σ_v)
+    vlab = scale_σv(th.vlab)
+
+    prefactor = signal_prefactor(th, ex; c=c, scaling=1.0) # 232 ns
+    Eγ = freq(ma) * c.h_J # This can be assumed constant, since the width of the peak is very small compared to f_ref. Parts far away from peak are 0 anyways...
+    # cdf part is integral over maxwell distribution. freq = data[1] are bin_centers
+    Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(BoostedMaxwellBoltzmann(σ_v, vlab), velocity.(frequency .+ ex.Δω/2, ma)) .- cdf.(BoostedMaxwellBoltzmann(σ_v, vlab), velocity.(frequency .- ex.Δω/2, ma)))
     return Counts
 end
 

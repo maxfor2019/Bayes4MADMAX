@@ -55,7 +55,8 @@ signal = Theory(
     ma=45.517, 
     rhoa=0.3,
     EoverN=0.5, # 1.92 produces no signal, the further away the bigger the signal
-    σ_v=218.0
+    σ_v=218.0,
+    vlab=242.1
 )
 
 ax = my_axion(signal)
@@ -144,9 +145,10 @@ names_list = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
 data = combine_data(names_list)
 
 using HDF5
+using SavitzkyGolay
 ######## LOAD BACKGROUND AND NOISE #########
 
-bg_fit_results = h5open("data/bg_fits/211201-background_fit.h5", "r") do file
+bg_fit_results = h5open("data/bg_fits/background_fit_waxion.h5", "r") do file
     read(file)
 end
 
@@ -168,9 +170,10 @@ fit = sg.y[b:e]
 rdata2[:,2] = rdata2[:,2] -fit
 rdata2[:,2] .-= mean(rdata2[:,2])
 
-plot(rdata2[:,1], rdata2[:,2], alpha=0.7)
-plot!(rdata1[:,1], rdata1[:,2], alpha=0.7)
-xlims!((5e6,7e6))
+plot(rdata2[:,1], rdata2[:,2], alpha=0.7, label="SG fit")
+plot!(rdata1[:,1], rdata1[:,2], alpha=0.7, label="MGVI fit")
+xlims!((5.8e6,6.2e6))
+
 
 mean(rdata1[:,2])
 mean(rdata2[:,2])
@@ -178,12 +181,12 @@ std(rdata1[:,2])
 std(rdata2[:,2])
 
 
-#data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
+#data = gaussian_noise(5.9e6,6.1e6,2.034e3,scale=9.4e-24)
 rel_freqs = data[:,1]
 vals = data[:,2]
 
 # will have to cut half of the SG length
-
+b=0
 options=(
     # reference frequency
     f_ref = 11.0e9+b*2.034e3,
@@ -213,12 +216,14 @@ signal = Theory(
     ma=45.517, 
     rhoa=0.3,
     EoverN=0.5,
-    σ_v=218.0
+    σ_v=218.0,
+    vlab=242.1
 )
 
 ax = my_axion(signal)
 vals += ax
 data = hcat(rel_freqs,vals)
+
 #data = data[1:700,:]
 #maximum(ax)/9.4e-24#std(data[:,2])
 
@@ -364,7 +369,7 @@ length(a[1])
 using HDF5
 ######## LOAD BACKGROUND AND NOISE #########
 
-bg_fit_results = h5open("data/bg_fits/211201-background_fit.h5", "r") do file
+bg_fit_results = h5open("data/bg_fits/background_fit_waxion.h5", "r") do file
     read(file)
 end
 
@@ -376,10 +381,10 @@ plot!(data[:,2]*1e19)
 vals = (data[:,2].-mean(data[:,2])) ./ std(data[:,2])
 scatter(data[1000:1100,1], vals[1000:1100])
 plot!(data[1000:1100,1],bg_fit_results["background"][1000:1100,1])
-mean_bg_fit = sum(bg_fit_results["background"],dims=2)/40
+mean_bg_fit = sum(bg_fit_results["background"],dims=2)/20
 plot(data[:,1], 1e19*(data[:,2] - mean_bg_fit))
 b = 400
 e=24476
-b=2500
+b=2000
 e=3000
 plot(data[b:e,1], 1e19*(data[b:e,2] - mean_bg_fit[b:e]))
