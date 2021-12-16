@@ -16,14 +16,15 @@ include("forward_models.jl")
 
 using SavitzkyGolay
 using StatsPlots
+using HDF5
 
 function add_artificial_background!(data)
-    data[:,2] .+=  deepcopy(data[:,1]).^3 .* 2e-43 .- deepcopy(data[:,1]).^2 .* 1e-35 .+ deepcopy(data[:,1]) .* 1e-28 .+ 1e-20 .+ 1e-23 .* sin.(deepcopy(data[:,1])./5e4)
+    data[:,2] .+=  (deepcopy(data[:,1]).-7e6).^3 .* 1e-42 .* (1. +randn()) .- (deepcopy(data[:,1]).-7e6).^2 .* 1e-35 .* (1. +randn()) .+ (deepcopy(data[:,1]).-7e6) .* 1e-29 .* (1. +randn()) .+ 1e-20  .+ 2e-24 .* (1. +randn()) .* sin.(deepcopy(data[:,1])./5e4) .+ 1e-23 .* (1. +randn()) .* sin.(deepcopy(data[:,1])./20e4)
     return data
 end
 
 function dummy_data()
-    data = gaussian_noise(1e6,20e6,2.034e3,scale=9.4e-24)
+    data = gaussian_noise(4e6,9e6,2.034e3,scale=9.4e-24)
 end
 
 function add_axion!(data, signal)
@@ -68,31 +69,31 @@ signal = Theory(
     ma=45.517, 
     rhoa=0.3,
     EoverN=0.1,
-    σ_v=218.0
+    σ_v=218.0,
+    vlab=242.1
 )
 
-bin_list_ideal = ones(300,2)
+# Obtains the peak power for different noise realisations without background reduction.
+# This is the ideal case to test your filter against.
+nr_of_samples = 5000
+bin_list_ideal = ones(nr_of_samples,2)
 @time for i in range(1,length(bin_list_ideal[:,1]))
     data = dummy_data()
     add_axion!(data, signal)
     data, scale = my_normalize(data, 1e-20)
-    s_bin = 2442
-    bin_list_ideal[i,1] = data[:,2][s_bin]
-    bin_list_ideal[i,2] = data[:,2][s_bin+20]
+    s_bin = 968
+    bin_list_ideal[i,1] = data[:,2][s_bin] # Actual signal bin
+    bin_list_ideal[i,2] = data[:,2][s_bin+20] # Some other bin, that should just give white noise with 0 mean. if it doesn't this can be used to further understand induced correlations.
 end
+h5write("./data/filters/211215-test5000.h5", "ideal", bin_list_ideal)
+bin_list_ideal = h5read("./data/filters/211215-test5000.h5", "ideal")
 bin_list_ideal
-gauss_ideal = fit(Normal, bin_list_ideal[:,2])
-histogram!(bin_list_ideal[:,1], alpha=0.5, label="ideal")
+gauss_ideal = fit(Normal, bin_list_ideal[:,1]) # Fit a gaussian on the histogram and use this afterwards to calculate η.
+histogram(bin_list_ideal[:,1], alpha=0.5, label="ideal")
 plot!(gauss_ideal)
 
-function bin_means(hist)
-    edges = hist.edges[1]
-    means = edges[1:end-1] .+ (edges[2]-edges[1])/2
-    return means
-end
-
-
-bin_list_sg = ones(300,2)
+# This is the equivalent what I did for SG filter. You would need to adapt this to MGVI
+bin_list_sg = ones(nr_of_samples,2)
 @time for i in range(1,length(bin_list_sg[:,1]))
     data = dummy_data()
     add_axion!(data, signal)
@@ -101,38 +102,21 @@ bin_list_sg = ones(300,2)
     w = 201
     d=6
     sg = savitzky_golay(data[:,2], w, d)
-    s_bin = 2442
+    s_bin = 968
     data = data[w:end-w,:]
     myfit = sg.y[w:end-w]
     data[:,2] = data[:,2] - myfit
-    bin_list_sg[i,1] = data[:,2][s_bin-w+1]
-    bin_list_sg[i,2] = data[:,2][s_bin-w+21] # Why +1 ?!
+    bin_list_sg[i,1] = data[:,2][s_bin-w]
+    bin_list_sg[i,2] = data[:,2][s_bin-w+21]
 end
 bin_list_sg
-gauss_sg = fit(Normal, bin_list_sg[:,2])
+gauss_sg = fit(Normal, bin_list_sg[:,1])
 histogram!(bin_list_sg[:,1], alpha=0.5, label="SG filter")
 plot!(gauss_sg)
+
+# These functions are what we care for in the end. The higher the η the better!
 η(normal1, normal2) = normal1.μ / normal2.μ * normal2.σ / normal1.σ
 ξ(normal1, normal2) = normal1.σ / normal2.σ
 ξ(gauss_sg, gauss_ideal)
 η(gauss_sg, gauss_ideal)
-gauss_sg.μ
-
-
-data = dummy_data()
-add_axion!(data, signal)
-add_artificial_background!(data)
-data, scale = my_normalize(data, 1e-20)
-w = 201
-d=6
-sg = savitzky_golay(data[:,2], w, d)
-s_bin = 2442
-data = data[w:end-w,:]
-myfit = sg.y[w:end-w]
-data[:,2] = data[:,2] - myfit
-data[:,2][s_bin-w+1]
-plot(data[:,2][s_bin-w-5:s_bin-w+5])
-plot!(data[:,2][s_bin-5:s_bin+5])
-
-plot(data[:,1],data[:,2])
 
