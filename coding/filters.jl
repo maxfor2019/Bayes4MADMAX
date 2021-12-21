@@ -127,7 +127,7 @@ end
 bin_list_ideal *= 1e20
 gauss_ideal = fit(Normal, bin_list_ideal) # Fit a gaussian on the histogram and use this afterwards to calculate η.
 histogram(bin_list_ideal, alpha=0.5, label="ideal")
-plot!(gauss_ideal)
+plot!(gauss_ideal, label="gauss fit ideal")
 
 ################ PART 5 - SG analysis #####################################################
 # runtime ~ seconds
@@ -154,7 +154,8 @@ gauss_sg = fit(Normal, bin_list_sg)
 gauss_noise = fit(Normal, bin_list_noise)
 histogram!(bin_list_sg, alpha=0.5, label="SG filter")
 histogram!(bin_list_noise, alpha=0.5, label="no signal")
-plot!(gauss_sg)
+plot!(gauss_sg, label="gauss fit SG")
+plot!(legend=:topleft)
 
 # These functions are what we care for in the end. The higher the η the better!
 η(normal1, normal2) = normal1.μ / normal2.μ * normal2.σ / normal1.σ
