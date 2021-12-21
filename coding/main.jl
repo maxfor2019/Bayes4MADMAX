@@ -28,7 +28,7 @@ vals = data[:,2]
 
 options=(
     # reference frequency
-    f_ref = 11.0e9+2.034e3,
+    f_ref = 11.0e9,#+2.034e3,
 )
 
 Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
@@ -54,7 +54,7 @@ end
 signal = Theory(
     ma=45.517, 
     rhoa=0.3,
-    EoverN=0.5, # 1.92 produces no signal, the further away the bigger the signal
+    EoverN=0.1, # 1.92 produces no signal, the further away the bigger the signal
     σ_v=218.0,
     vlab=242.1
 )
@@ -70,80 +70,6 @@ ddict = Dict(
 FileIO.save("data/tmp/dataWaxion.jld2", ddict)
 
 
-
-
-stacks =  []
-for i in 1:256
-    try
-        append!(stacks, [data[96*i-95:1:96*(i+1)-86,2]])
-    catch
-        append!(stacks, [data[96*i-105:1:96*(i+1)-96,2]])
-    end
-end
-stacks[1]
-plot()
-for stack in stacks
-    plot!(stack)
-end
-plot!()
-
-using Polynomials
-function fit_background(stack)
-    f1 = Polynomials.fit(1:length(stack), stack, 3)
-    return residual = f1.(1:length(stack))-stack
-end
-
-residuals = fit_background.(stacks)
-
-plot(residuals[180])
-ylims!((minimum(residuals[180]),maximum(residuals[180])))
-mean(residuals[113])
-n = [std(residual) for residual in residuals]
-minimum(n)
-plot(n[179:185])
-ylims!(minimum(n),maximum(n))
-
-function ma_prior(data, kwargs)
-    fstart = kwargs.f_ref + minimum(data[:,1])
-    fend = kwargs.f_ref + maximum(data[:,1])
-    mstart = mass(fstart) .* 1e6
-    mend = mass(fend) .* 1e6   
-    return Uniform(mstart,mend)
-end
-
-include("physics.jl")
-c = SeedConstants()
-σ_v = 218.0* 1.0e3/c.c
-model = (ma=45.49366806966277, rhoa=0.3, σ_v=σ_v)
-
-ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=50.0, Δω=2e3) # careful not to accidentally ignore a few of the relevant parameters!
-options=(
-    # reference frequency
-    f_ref = 11.0e9,
-    scale_ω = 1e-5,
-)
-fs = 0.0:0.02:2.1 
-length(fs)
-fs /= options.scale_ω
-fs[2]-fs[1]
-length(fs)
-
-data = hcat(fs,residuals[1])
-prior = NamedTupleDist(
-    ma = ma_prior(data, options),
-    sig_v = Normal(model.σ_v, 6.0 * 1.0e3/c.c),
-    rhoa = Uniform(0.0,0.45)
-)
-
-
-
-
-
-
-
-names_list = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
-data = combine_data(names_list)
-
 using HDF5
 using SavitzkyGolay
 ######## LOAD BACKGROUND AND NOISE #########
@@ -155,7 +81,7 @@ end
 #noise_stds = bg_fit_results["noise_std"]
 mean_bg_fit = sum(bg_fit_results["background"],dims=2)/size(bg_fit_results["background"],2)
 
-b=400
+b=100
 e=24476
 scale = mean(data[:,2])
 rdata1 = deepcopy(data)
@@ -168,64 +94,12 @@ sg = savitzky_golay(rdata2[:,2], 201, 6)
 rdata2 = rdata2[b:e,:]
 fit = sg.y[b:e]
 rdata2[:,2] = rdata2[:,2] -fit
-rdata2[:,2] .-= mean(rdata2[:,2])
+#rdata2[:,2] .-= mean(rdata2[:,2])
 
 plot(rdata2[:,1], rdata2[:,2], alpha=0.7, label="SG fit")
 plot!(rdata1[:,1], rdata1[:,2], alpha=0.7, label="MGVI fit")
 xlims!((5.8e6,6.2e6))
 
-
-mean(rdata1[:,2])
-mean(rdata2[:,2])
-std(rdata1[:,2])
-std(rdata2[:,2])
-
-
-#data = gaussian_noise(5.9e6,6.1e6,2.034e3,scale=9.4e-24)
-rel_freqs = data[:,1]
-vals = data[:,2]
-
-# will have to cut half of the SG length
-b=0
-options=(
-    # reference frequency
-    f_ref = 11.0e9+b*2.034e3,
-)
-
-Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
-freqs = rel_freqs .+ options.f_ref
-
-ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δfreq) # careful not to accidentally ignore a few of the relevant parameters!
-
-my_axion = let f = freqs, ex = ex
-    function ax(parameters)
-        sig = axion_forward_model(parameters, ex, f)
-        if maximum(sig) > 0.0
-            nothing
-        else
-            error("The specified axion model is not within the frequency range of your data. Fiddle around with signal.ma or options.f_ref!")
-        end
-        return sig
-    end
-
-end
-
-# signal is roughly at 11e9+18e5 Hz for this mass value
-# ma + 0.001 shifts the signal roughly by 4e5 Hz
-signal = Theory(
-    ma=45.517, 
-    rhoa=0.3,
-    EoverN=0.5,
-    σ_v=218.0,
-    vlab=242.1
-)
-
-ax = my_axion(signal)
-vals += ax
-data = hcat(rel_freqs,vals)
-
-#data = data[1:700,:]
-#maximum(ax)/9.4e-24#std(data[:,2])
 
 data = rdata2
 data[:,2] .*= scale
@@ -238,7 +112,7 @@ prior = make_prior(data, signal, options,pow=:loggaγγ)
 truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
 println("truth = $truth")
 plot_truths(truth,data,ex, options)
-xlims!((4.5e6,5.5e6))
+xlims!((5.5e6,6.5e6))
 posterior = PosteriorDensity(likelihood, prior)
 
 
