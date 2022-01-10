@@ -54,10 +54,12 @@ end
 signal = Theory(
     ma=45.517, 
     rhoa=0.3,
-    EoverN=0.1, # 1.92 produces no signal, the further away the bigger the signal
+    EoverN=0.1, # 1.924 produces no signal, the further away the bigger the signal
     σ_v=218.0,
     vlab=242.1
 )
+
+log10.(gaγγ(fa(signal.ma*1e-6),signal.EoverN))
 
 ax = my_axion(signal)
 vals += ax
@@ -83,26 +85,33 @@ mean_bg_fit = sum(bg_fit_results["background"],dims=2)/size(bg_fit_results["back
 
 b=100
 e=24476
-scale = mean(data[:,2])
+sc = mean(data[:,2])
 rdata1 = deepcopy(data)
 rdata1[b:e,2] = (deepcopy(data[b:e,2]) .- mean_bg_fit[b:e])./scale
 rdata1 = rdata1[b:e,:]
 
 rdata2 = deepcopy(data)
-rdata2[:,2] ./= scale
-sg = savitzky_golay(rdata2[:,2], 201, 6)
+rdata2[:,2] ./= sc
+sg = savitzky_golay(rdata2[:,2], 301, 4)
 rdata2 = rdata2[b:e,:]
 fit = sg.y[b:e]
 rdata2[:,2] = rdata2[:,2] -fit
 #rdata2[:,2] .-= mean(rdata2[:,2])
+println(maximum(rdata2[2200:2500,2]))
+mean(rdata2[:,2])
+rsrt = sort(abs.(deepcopy(rdata2[:,2])));
+rsrt[Int(trunc(length(rsrt)*0.9))]
 
-plot(rdata2[:,1], rdata2[:,2], alpha=0.7, label="SG fit")
+plot(rdata2[2200:3000,1], rdata2[2200:3000,2], alpha=0.7, label="SG fit")
 plot!(rdata1[:,1], rdata1[:,2], alpha=0.7, label="MGVI fit")
 xlims!((5.8e6,6.2e6))
 
 
 data = rdata2
-data[:,2] .*= scale
+data[:,2] .*= sc
+
+plot(data[1000:3000,1], data[1000:3000,2], alpha=0.7, label="SG fit")
+ylims!((-1e-22, 1e-22))
 
 include("prior.jl")
 include("likelihood.jl")
@@ -120,7 +129,7 @@ likelihood(truth)
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
-sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=100))
+sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=500))
 #sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
@@ -145,7 +154,7 @@ run2 = Dict(
 )
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-FileIO.save(samples_path*"211202-mgvi_loggag_newfit.jld2", run2)
+FileIO.save(samples_path*"220106-sg_loggag_myaxion_realistic.jld2", run2)
 input = FileIO.load(samples_path*"211104-test_noB_SN2_gag_full.jld2", "input")
 data = input.data
 options = input.options
@@ -158,7 +167,7 @@ sampling = input.MCMCsampler
 signal.rhoa
 run = FileIO.load(samples_path*"211019-test_noB_SN1_loggag_full.jld2")
 
-samples = FileIO.load(samples_path*"211202-mgvi_loggag_newfit.jld2", "samples")
+samples = FileIO.load(samples_path*"220106-sg_loggag_myaxion_realistic.jld2", "samples")
 #sampleslg = FileIO.load(samples_path*"211027-test_noB_SN1_loggag_full.jld2", "samples")
 
 samples = out.result
@@ -177,8 +186,8 @@ plot(samples)
 println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
-xlims!((5e6,5.5e6))
-mysavefig("211202-mgvi_loggag_newfit")
+xlims!((5.5e6,6.5e6))
+mysavefig("220106-sg_loggag_myaxion_realistic")
 #= If you want to get sensible values for the coefficients
 using Polynomials
 

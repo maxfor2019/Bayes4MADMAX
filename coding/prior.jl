@@ -47,7 +47,7 @@ Priors include
 
 function make_prior(data, signal, options; pow=:rhoa)
     ma = ma_prior(data, options)
-    sig_v = Normal(signal.σ_v,39.0) # 6 from DM uncertainty, 3 from Sun velocity uncertainty and 30 from earth movement. This cannot be added up and earth velocity is not normal distributed. Needs to be fixed at some point
+    sig_v = Normal(160.0,39.0) # 6 from DM uncertainty, 3 from Sun velocity uncertainty and 30 from earth movement. This cannot be added up and earth velocity is not normal distributed. Needs to be fixed at some point
     if pow==:rhoa
         rhoa = rhoa_prior(signal.rhoa+0.15)
         return NamedTupleDist(ma=ma, sig_v=sig_v, rhoa=rhoa)

@@ -44,7 +44,7 @@ mutable struct Theory
     ma::Float64
     rhoa::Float64
     EoverN::Float64
-    σ_v::Float64
+    σ_v::Float64 #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
     vlab::Float64
 end
 
