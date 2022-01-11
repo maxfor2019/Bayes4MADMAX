@@ -126,8 +126,6 @@ bin_list_ideal = []
 end
 bin_list_ideal *= 1e20
 gauss_ideal = fit(Normal, bin_list_ideal) # Fit a gaussian on the histogram and use this afterwards to calculate η.
-histogram(bin_list_ideal, alpha=0.5, label="ideal")
-plot!(gauss_ideal, label="gauss fit ideal")
 
 ################ PART 5 - SG analysis #####################################################
 # runtime ~ seconds
@@ -139,8 +137,8 @@ s_bin = 968
 @time for i in range(1,5000)
     data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
     data, scale = my_normalize(data, 1e-20)
-    w = 201
-    d=6
+    w = 301
+    d=4
     sg = savitzky_golay(data[:,2], w, d)
     data = data[w:end-w,:]
     myfit = sg.y[w:end-w]
@@ -148,18 +146,54 @@ s_bin = 968
     append!(bin_list_sg, data[s_bin-w+1,2])
     append!(bin_list_noise, data[s_bin-w+50,2])
 end
-bin_list_sg *= 1. # convert Vector{Any} to Vector{Float}
-bin_list_noise *= 1.
+bin_list_sg /= gauss_ideal.σ # convert Vector{Any} to Vector{Float}, rescale
+bin_list_noise /= gauss_ideal.σ
+bin_list_ideal /= gauss_ideal.σ
+gauss_id = fit(Normal, bin_list_ideal)
 gauss_sg = fit(Normal, bin_list_sg)
 gauss_noise = fit(Normal, bin_list_noise)
-histogram!(bin_list_sg, alpha=0.5, label="SG filter")
-histogram!(bin_list_noise, alpha=0.5, label="no signal")
+
+histogram(bin_list_ideal, alpha=0.5, label="ideal", normalize=true)
+plot!(gauss_id, label="gauss fit ideal")
+histogram!(bin_list_sg, alpha=0.5, label="SG filter", normalize=true)
+histogram!(bin_list_noise, alpha=0.5, label="no signal", normalize=true)
 plot!(gauss_sg, label="gauss fit SG")
 plot!(legend=:topleft)
+mysavefig("220111-SG_gauss")
+
+
+# replicate Fig. 6 of 1706.08388
+function gauss_prediction(norm, edges, len)
+    (cdf(norm, edges)[2:end] - cdf(norm, edges)[1:end-1]) .* len
+end
+
+hisg = fit(Histogram, bin_list_sg, nbins=50)
+msg = (hisg.edges[1] .+ (hisg.edges[1][2] - hisg.edges[1][1]))[1:end-1]
+hiid = fit(Histogram, bin_list_ideal, nbins=50)
+mid = (hiid.edges[1] .+ (hiid.edges[1][2] - hiid.edges[1][1]))[1:end-1]
+
+scatter(msg, hisg.weights, yaxis=(:log, [0.9, :auto]), c=:black, label="SG filter")
+scatter!(mid, hiid.weights, yaxis=(:log, [0.9, :auto]), c=:royalblue, markershape=:utriangle, label="ideal")
+plot!(msg, gauss_prediction(gauss_sg,hisg.edges[1], length(bin_list_sg)), c=:black, label="", yaxis=(:log, [0.9, :auto]))
+plot!(mid, gauss_prediction(gauss_id,hiid.edges[1], length(bin_list_ideal)), c=:royalblue, label="", yaxis=(:log, [0.9, :auto]))
+plot!(legend=:bottom)
+xlabel!("Normalized power excess")
+ylabel!("Count")
+
+μsg = round(gauss_sg.μ; digits = 2)
+σsg = round(gauss_sg.σ; digits = 2)
+μid = round(gauss_id.μ; digits = 2)
+σid = round(gauss_id.σ; digits = 2)
 
 # These functions are what we care for in the end. The higher the η the better!
 η(normal1, normal2) = normal1.μ / normal2.μ * normal2.σ / normal1.σ
 ξ(normal1, normal2) = normal1.σ / normal2.σ
-ξ(gauss_sg, gauss_ideal)
-η(gauss_sg, gauss_ideal)
+xi = round(ξ(gauss_sg, gauss_id); digits = 3)
+eta = round(η(gauss_sg, gauss_id); digits = 3)
+
+annotate!(0.5,100,text(" μ = $μsg \n σ = $σsg", :left, 10))
+annotate!(7,100,text(" μ = $μid \n σ = $σid", :royalblue, :left, 10))
+annotate!(3.0,3,text(" ξ = $xi \n η = $eta", :left, 10))
+mysavefig("220111-HAYSTACfig6_testdata")
+
 
