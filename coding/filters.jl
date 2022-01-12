@@ -120,8 +120,10 @@ plot(data[:,1], data[:,2]/1e-20)
 
 # analysis for ideal case wo/ background
 bin_list_ideal = []
-@time for i in range(1,5000)
-    append!(bin_list_ideal, h5read(path*"test5000-"*string(i)*".h5", "noise+ax")[s_bin,2])
+@time for i in range(1,nr_of_samples)
+    data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax")
+    integral_id = sum(data[s_bin-2:s_bin+7,2]) # this bin range optimizes gauss_ideal.μ / gauss_ideal.σ
+    append!(bin_list_ideal, integral_id)
     i += 1
 end
 bin_list_ideal *= 1e20
@@ -133,7 +135,6 @@ gauss_ideal = fit(Normal, bin_list_ideal) # Fit a gaussian on the histogram and 
 # This is the equivalent what I did for SG filter. You would need to adapt this to MGVI
 bin_list_sg = []
 bin_list_noise = []
-s_bin = 968
 @time for i in range(1,5000)
     data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
     data, scale = my_normalize(data, 1e-20)
@@ -143,14 +144,15 @@ s_bin = 968
     data = data[w:end-w,:]
     myfit = sg.y[w:end-w]
     data[:,2] = data[:,2] - myfit
-    append!(bin_list_sg, data[s_bin-w+1,2])
-    append!(bin_list_noise, data[s_bin-w+50,2])
+    append!(bin_list_sg, sum(data[s_bin-w-1:s_bin-w+8,2]))
+    append!(bin_list_noise, sum(data[s_bin-1:s_bin+9,2]))
 end
 bin_list_sg /= gauss_ideal.σ # convert Vector{Any} to Vector{Float}, rescale
 bin_list_noise /= gauss_ideal.σ
 bin_list_ideal /= gauss_ideal.σ
 gauss_id = fit(Normal, bin_list_ideal)
 gauss_sg = fit(Normal, bin_list_sg)
+gauss_sg.μ / gauss_sg.σ
 gauss_noise = fit(Normal, bin_list_noise)
 
 histogram(bin_list_ideal, alpha=0.5, label="ideal", normalize=true)
@@ -191,9 +193,9 @@ ylabel!("Count")
 xi = round(ξ(gauss_sg, gauss_id); digits = 3)
 eta = round(η(gauss_sg, gauss_id); digits = 3)
 
-annotate!(0.5,100,text(" μ = $μsg \n σ = $σsg", :left, 10))
-annotate!(7,100,text(" μ = $μid \n σ = $σid", :royalblue, :left, 10))
-annotate!(3.0,3,text(" ξ = $xi \n η = $eta", :left, 10))
-mysavefig("220111-HAYSTACfig6_testdata")
+annotate!(6,100,text(" μ = $μsg \n σ = $σsg", :left, 10))
+annotate!(13,100,text(" μ = $μid \n σ = $σid", :royalblue, :left, 10))
+annotate!(8.5,3,text(" ξ = $xi \n η = $eta", :left, 10))
+mysavefig("220111-HAYSTACfig6_testdata_integrated")
 
 
