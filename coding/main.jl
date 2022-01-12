@@ -182,12 +182,13 @@ for i in 1:length(samples.v)
     samples2.v[i] = (ma=samples.v[i][:ma], sig_v=samples.v[i][:sig_v], gag=samples.v[i][:gag]*1e24)
 end
 plot(samples)
+vline!([45.517 NaN NaN NaN 218 NaN NaN NaN -22.77])
 
-println("Mean: $(mean(samples))")
+println("Mean: $(mean(samples)[1][1])")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
 xlims!((5.5e6,6.5e6))
-mysavefig("220106-sg_loggag_myaxion_realistic")
+mysavefig("220106-sg_loggag_myaxion_realistic_corner")
 #= If you want to get sensible values for the coefficients
 using Polynomials
 
