@@ -1,3 +1,7 @@
+
+import Pkg
+Pkg.activate(".")
+
 println("Hello there!") # ;-) Check if anything is responding!
 
 
@@ -17,6 +21,7 @@ using FileIO, JLD2 # for saving the samples
 
 using HDF5 # also for saving
 using SavitzkyGolay # SG background fit
+using ForwardDiff # to be able to define Theory so BAT can read the struct
 
 include("physics.jl")
 include("read_data.jl")
@@ -69,8 +74,8 @@ signal = Theory(
     vlab=242.1
 )
 
-ax = my_axion(signal)
-vals += ax
+#ax = my_axion(signal)
+#vals += ax
 data = hcat(rel_freqs,vals)
 
 
@@ -87,22 +92,24 @@ rdata2[:,2] = rdata2[:,2] - ft
 data = rdata2
 data[:,2] .*= sc
 
-#plot(data[1000:3000,1], data[1000:3000,2], alpha=0.7, label="SG fit")
-#ylims!((-1e-22, 1e-22))
+#plot(data[:,1], data[:,2], alpha=0.7, label="SG fit")
+#ylims!((-3e-23, 3e-23))
+
+#data = gaussian_noise(11e9,11e9+1000*Δfreq, Δfreq, scale=1e-22)
 
 include("prior.jl")
 include("likelihood.jl")
 
 prior = make_prior(data, options,pow=:loggaγγ)
 
-truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
+#truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
 
-println("truth = $truth")
+#println("truth = $truth")
 #plot_truths(truth,data,ex, options)
 #xlims!((5.5e6,6.5e6))
 
 posterior = PosteriorDensity(likelihood, prior)
-likelihood(truth)
+#likelihood(truth)
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -114,7 +121,7 @@ likelihood(truth)
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
 sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=500))
-#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=20))
+#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
 
@@ -128,13 +135,13 @@ sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), n
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-file_name = "220106-sg_loggag_myaxion_realistic"
+file_name = "220119-sg_loggag_noax20170308"
 
 input = (
     data=data,
     ex=ex,
     options=options,
-    signal=signal,
+    #signal=signal,
     prior=prior,
     likelihood=likelihood,
     posterior=posterior,
@@ -172,6 +179,7 @@ plot(samples)
 println("Mean: $(mean(samples)[1][1])")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
-xlims!((5.5e6,6.5e6))
-mysavefig("220106-sg_loggag_myaxion_realistic_corner")
+xlims!((3.595e7,3.6075e7))
+#xlims!((5.5e6,6.5e6))
+mysavefig("220119-sg_loggag_OlafsSignal_corner")
 =#
