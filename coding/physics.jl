@@ -41,11 +41,11 @@ end
     All relevant theoretical/ cosmological/ nature parameters.
 """
 mutable struct Theory
-    ma::Float64
-    rhoa::Float64
-    EoverN::Float64
-    σ_v::Float64 #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
-    vlab::Float64
+    ma::Union{Float64, ForwardDiff.Dual}
+    rhoa::Union{Float64, ForwardDiff.Dual}
+    EoverN::Union{Float64, ForwardDiff.Dual}
+    σ_v::Union{Float64, ForwardDiff.Dual} #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
+    vlab::Union{Float64, ForwardDiff.Dual}
 end
 
 function Theory(;ma=45.501, rhoa=0.3, EoverN=0.924, σ_v=218.0, vlab=242.1)

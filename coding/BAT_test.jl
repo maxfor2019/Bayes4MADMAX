@@ -2,6 +2,7 @@ using BAT # I'll probs need that at some point!
 
 using Random, LinearAlgebra, Statistics, Distributions, StatsBase
 using Plots
+using ForwardDiff
 
 data = vcat(
     rand(Normal(-1.0, 0.5), 500),
@@ -17,7 +18,24 @@ plot(
 )
 #savefig("./data/tmp/tutorial-data.pdf")
 
+
+"""
+    All relevant theoretical/ cosmological/ nature parameters.
+"""
+mutable struct Theory
+    ma::Union{Float64, ForwardDiff.Dual}
+    rhoa::Float64
+    EoverN::Union{Float64, ForwardDiff.Dual}
+    σ_v::Union{Float64, ForwardDiff.Dual} #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759
+    vlab::Union{Float64, ForwardDiff.Dual}
+end
+
+function Theory(;ma=45.501, rhoa=0.3, EoverN=0.924, σ_v=218.0, vlab=242.1)
+    return Theory(ma, rhoa, EoverN, σ_v, vlab)
+end
+
 function fit_function(p::NamedTuple{(:a, :mu, :sigma)}, x::Real)
+    th = Theory(ma=p.a[1]/10,rhoa=0.3,EoverN=p.mu[1],σ_v=p.sigma)
     p.a[1] * pdf(Normal(p.mu[1], p.sigma), x) +
     p.a[2] * pdf(Normal(p.mu[2], p.sigma), x)
 end
@@ -232,7 +250,7 @@ PosteriorDensity{
 
 
 
-samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(), nsteps = 10^5, nchains = 4)).result
+samples = bat_sample(posterior, MCMCSampling(mcalg = HamiltonianMC(), nsteps = 10^5, nchains = 4)).result
 
 using FileIO, JLD2
 FileIO.save("./data/210507-testsamples2.jld2", Dict("samples" => samples))
