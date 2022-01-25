@@ -35,8 +35,8 @@ include("forward_models.jl")
 #                                                                       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-names_list = ["Het3_10K_0-15z_20170308_191203_S0"*string(i)*".smp" for i in 1:4]
-data = combine_data(names_list)
+names_list = ["Het3_10K_0-15z_18-85GHz_20170413_160107_S0"*string(i)*".smp" for i in 1:4]
+data = combine_data(names_list, path="./data/Fake_Axion_Data/Data_Set_2/")
 
 rel_freqs = data[:,1]
 vals = data[:,2]
@@ -64,8 +64,8 @@ my_axion = let f = freqs, ex = ex
 
 end
 
-# signal is roughly at 11e9+18e5 Hz for this mass value
-# ma + 0.001 shifts the signal roughly by 4e5 Hz
+# signal with ma=45.5 is roughly at 11e9+18e5 Hz for this mass value
+# ma + 0.001 shifts the signal roughly by 2.4e5 Hz
 signal = Theory(
     ma=45.517, 
     rhoa=0.3,
@@ -74,8 +74,8 @@ signal = Theory(
     vlab=242.1
 )
 
-#ax = my_axion(signal)
-#vals += ax
+ax = my_axion(signal)
+vals += ax
 data = hcat(rel_freqs,vals)
 
 
@@ -95,18 +95,20 @@ data[:,2] .*= sc
 #plot(data[:,1], data[:,2], alpha=0.7, label="SG fit")
 #ylims!((-3e-23, 3e-23))
 
-#data = gaussian_noise(11e9,11e9+1000*Δfreq, Δfreq, scale=1e-22)
+#data = gaussian_noise(5e6,5e6+1000*Δfreq, Δfreq, scale=1e-23)
 
 include("prior.jl")
 include("likelihood.jl")
 
 prior = make_prior(data, options,pow=:loggaγγ)
 
-#truth = (ma=signal.ma, sig_v=signal.σ_v, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))
+#truth = (ma =45.51302603762063, sig_v = 59.93871628802856, log_gag = -22.000000095842843)#
+#truth = (ma=45.514, sig_v=59.9, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))  
 
 #println("truth = $truth")
 #plot_truths(truth,data,ex, options)
-#xlims!((5.5e6,6.5e6))
+#xlims!((33.e6,35.e6))
+
 
 posterior = PosteriorDensity(likelihood, prior)
 #likelihood(truth)
@@ -121,7 +123,7 @@ posterior = PosteriorDensity(likelihood, prior)
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 #samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
 sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=500))
-#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
+#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 1*10^3, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
 
@@ -135,7 +137,7 @@ sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), n
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-file_name = "220119-sg_loggag_noax20170308"
+file_name = "220124-sg_loggag_noax20170413"
 
 input = (
     data=data,
@@ -172,14 +174,13 @@ prior=input.prior
 signal=input.signal
 posterior=input.posterior
 sampling = input.MCMCsampler
-signal.rhoa
 samples = FileIO.load(samples_path*file_name*".jld2", "samples")
 plot(samples)
 
-println("Mean: $(mean(samples)[1][1])")
+println("Mean: $(mean(samples))")
 println("Std: $(std(samples))")
 plot_fit(samples, data, ex, options, savefig=nothing)
 xlims!((3.595e7,3.6075e7))
 #xlims!((5.5e6,6.5e6))
-mysavefig("220119-sg_loggag_OlafsSignal_corner")
+mysavefig("220124-sg_loggag_OlafNoSignal_corner")
 =#
