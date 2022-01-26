@@ -157,7 +157,7 @@ end
 using SpecialFunctions
 
 function Distributions.cdf(d::BoostedMaxwellBoltzmann{T}, x::Real) where {T <: Real} # 30 μs Dont broadcast if not absolutely necessary!
-    return d.σv / (sqrt(2*pi) * d.vlab) * exp(-(x+d.vlab)^2. /(2. * d.σv^2)) * (1 - exp(2. * x * d.vlab / d.σv^2)) + 1. / 2. * (erf((x-d.vlab)/(sqrt(2)*d.σv)) + erf((x+d.vlab)/(sqrt(2)*d.σv)))
+    return d.σv / (sqrt(2*pi) * d.vlab) * (exp(-(x+d.vlab)^2. /(2. * d.σv^2)) - exp((2. * x * d.vlab - x^2. -d.vlab^2.) /(2. * d.σv^2))) + 1. / 2. * (erf((x-d.vlab)/(sqrt(2)*d.σv)) + erf((x+d.vlab)/(sqrt(2)*d.σv)))
 end
 
 function Random.rand(rng::AbstractRNG, d::BoostedMaxwellBoltzmann{T}) where {T <: Real}
