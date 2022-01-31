@@ -286,7 +286,7 @@ plot(data_id[:,2] .*1e20, label="ideal")
 w = 0#301
 d=4
 data_sg = zeros(size(h5read(path*"test5000-"*string(2)*".h5", "noise+ax")[w+1:end-w,:]))
-@time for i in range(1,5000)
+@time for i in range(1,nr_of_samples)
     data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
     data_nobg = h5read(path*"test5000-"*string(i)*".h5", "noise+ax")
     data_noax = h5read(path*"test5000-"*string(i)*".h5", "noise")
@@ -343,6 +343,6 @@ plot!(data_m1[:,2], label="MGVI sample1")
 plot!(data_m2[:,2], label="MGVI sample2")
 
 plot!(legend=:bottomright)
-mysavefig("220126-gaussianity_mgvi_compare")
+#mysavefig("220126-gaussianity_mgvi_compare")
 plot!(data_m1[:,1], data_m1[:,2])
 plot!(data_m2[:,1], data_m2[:,2])
