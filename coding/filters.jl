@@ -32,7 +32,6 @@ end
 
 function add_axion!(data, signal)
     rel_freqs = data[:,1]
-    vals = data[:,2]
 
     # will have to cut half of the SG length
 
@@ -123,11 +122,11 @@ plot(data[:,1], data[:,2]/1e-20)
 
 function handle(data, s_bin; add=0)
     # just take maximal bin into consideration
-    #return data[s_bin+add,2]
+    return data[s_bin+add,2]
     # sum over a couple of bins (maximizes μ/σ for the values given)
     #return sum(data[s_bin-2+add:s_bin+7+add,2])
     # implement HAYSTAC-like filter (weights corresponding to axion signal. This version only works for correct signal position)
-    s_bin = ideal_filter()
+    #s_bin = ideal_filter()
     return sum(data[:,2] .* s_bin[add+1:end-add,2])
 
 end
@@ -158,7 +157,7 @@ gauss_ideal = fit(Normal, bin_list_ideal) # Fit a gaussian on the histogram and 
 # This is the equivalent what I did for SG filter. You would need to adapt this to MGVI
 bin_list_sg = []
 bin_list_noise = []
-@time for i in range(1,5000)
+@time for i in range(1,nr_of_samples)
     data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
     data, scale = my_normalize!(data, 1e-20)
     w = 301
@@ -167,11 +166,10 @@ bin_list_noise = []
     data = data[w+1:end-w,:]
     myfit = sg.y[w+1:end-w]
     data[:,2] = data[:,2] - myfit
-    append!(bin_list_sg, handle(data, s_bin, add=w))#1-w))
-    #append!(bin_list_noise, handle(data, s_bin, add=1))
+    append!(bin_list_sg, handle(data, s_bin, add=-w))#1-w))
+    append!(bin_list_noise, handle(data, s_bin, add=1))
 end
-bin_list_sg /= gauss_ideal.σ # convert Vector{Any} to Vector{Float}, rescale
-bin_list_noise /= gauss_ideal.σ
+
 
 ################ PART 6 - MGVI #####################################################
 # runtime ~ seconds
@@ -180,10 +178,7 @@ path_mgvi_fits = "/remote/ceph2/user/k/knollmue/madmax_fits/"
 bin_list_mgvi1 = []
 bin_list_mgvi2 = []
 bin_list_mgvi3 = []
-#bin_list_noise2 = []
-#bin_list_noise3 = []
-#bin_list_noise4 = []
-@time for i in range(1,5000)
+@time for i in range(1,nr_of_samples)
     try
         data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
         data1 = deepcopy(data)
@@ -194,12 +189,11 @@ bin_list_mgvi3 = []
         data1[:,2] = data[:,2] - bg1
         data1, scale = my_normalize!(data1, 1e-20)
         append!(bin_list_mgvi1, handle(data1,s_bin))
-        #append!(bin_list_noise2, handle(data1,s_bin,add=301))
         
         data2[:,2] = data[:,2] - bg2
         data2, scale = my_normalize!(data2, 1e-20)
         append!(bin_list_mgvi2, handle(data2,s_bin))
-        #append!(bin_list_noise3, handle(data2,s_bin,add=301))
+
         bg = (bg[:,1] .+ bg[:,2]) ./ 2.0
         data[:,2] = data[:,2] - bg
         data, scale = my_normalize!(data, 1e-20)
@@ -208,38 +202,14 @@ bin_list_mgvi3 = []
         println(i)
     end
 end
-bin_list_mgvi1 /= gauss_ideal.σ # convert Vector{Any} to Vector{Float}, rescale
-bin_list_mgvi2 /= gauss_ideal.σ
-bin_list_mgvi3 /= gauss_ideal.σ
-#bin_list_noise2 /= gauss_ideal.σ
-#bin_list_noise3 /= gauss_ideal.σ
-#bin_list_noise4 /= gauss_ideal.σ
-
-bin_list_ideal /= gauss_ideal.σ
-gauss_id = fit(Normal, bin_list_ideal)
-gauss_sg = fit(Normal, bin_list_sg)
-gauss_mgvi1 = fit(Normal, bin_list_mgvi1)
-gauss_mgvi2 = fit(Normal, bin_list_mgvi2)
-gauss_mgvi3 = fit(Normal, bin_list_mgvi3)
 bin_list_mgvis = vcat(bin_list_mgvi1, bin_list_mgvi2)
-gauss_mgvis = fit(Normal, bin_list_mgvis)
-gauss_mgvi1.μ / gauss_mgvi1.σ
-gauss_noise = fit(Normal, bin_list_noise)
-#gauss_noise2 = fit(Normal, bin_list_noise2)
-#gauss_noise3 = fit(Normal, bin_list_noise3)
-#gauss_noise4 = fit(Normal, bin_list_noise4)
 
-#=
-histogram(bin_list_ideal, alpha=0.5, label="ideal", normalize=true)
-plot!(gauss_id, label="gauss fit ideal")
-histogram!(bin_list_sg, alpha=0.5, label="SG filter", normalize=true)
-histogram!(bin_list_mgvi, alpha=0.5, label="MGVI filter", normalize=true)
-histogram!(bin_list_noise, alpha=0.5, label="no signal", normalize=true)
-plot!(gauss_sg, label="gauss fit SG")
-plot!(gauss_mgvi, label="gauss fit MGVI")
-plot!(legend=:topleft)
-#mysavefig("220111-SG_gauss")
-=#
+# throw all bin_lists in there!
+list_of_binlists = [bin_list_ideal, bin_list_sg, bin_list_noise, bin_list_mgvis, bin_list_mgvi1, bin_list_mgvi2, bin_list_mgvi3]
+
+list_of_binlists = list_of_binlists ./ gauss_ideal.σ # convert Vector{Any} to Vector{Float}, rescale
+list_of_gausses = fit.(Normal, list_of_binlists)
+
 
 # replicate Fig. 6 of 1706.08388
 function gauss_prediction(norm, edges, len)
@@ -247,30 +217,26 @@ function gauss_prediction(norm, edges, len)
 end
 
 function make_hist(bin_list)
-    hi = fit(Histogram, bin_list, 0.2:0.2:15.0) # should not be nr of bins!
+    hi = fit(Histogram, bin_list, 0.2:0.2:10.0)
     m = (hi.edges[1] .+ (hi.edges[1][2] - hi.edges[1][1])/2.)[1:end-1]
     return hi, m
 end
 
-hisg , msg = make_hist(bin_list_sg)
-hiid, mid = make_hist(bin_list_ideal)
-himgvi, mmgvi = make_hist(bin_list_mgvi1)
-hin, mn = make_hist(bin_list_mgvi2)
-his, ms = make_hist(bin_list_mgvi3)
+hists = make_hist.(list_of_binlists)
 
-scatter(ms, his.weights, yaxis=(:log, [0.4, :auto]), c=:red, label="MGVI sum first")
+scatter(hists[1][2], hists[7][1].weights, yaxis=(:log, [0.4, :auto]), c=:red, label="MGVI sum first")
 
-sumweights = (hin.weights .+ himgvi.weights) ./2
+sumweights = (hists[5][1].weights .+ hists[6][1].weights) ./2
 
-scatter!(mn, sumweights, yaxis=(:log, [0.4, :auto]), c=:red, markershape=:ltriangle, label="MGVI sum last")
+scatter!(hists[1][2], sumweights, yaxis=(:log, [0.4, :auto]), c=:red, markershape=:ltriangle, label="MGVI sum last")
 
-scatter!(msg, hisg.weights, yaxis=(:log, [0.9, :auto]), c=:black, label="SG filter")
-scatter!(mid, hiid.weights, yaxis=(:log, [0.9, :auto]), c=:royalblue, markershape=:utriangle, label="ideal")
+scatter!(hists[1][2], hists[2][1].weights, yaxis=(:log, [0.9, :auto]), c=:black, label="SG filter")
+scatter!(hists[1][2], hists[1][1].weights, yaxis=(:log, [0.9, :auto]), c=:royalblue, markershape=:utriangle, label="ideal")
 #scatter!(mmgvi, himgvi.weights, yaxis=(:log, [0.9, :auto]), c=:red, markershape=:square, label="MGVI")
-plot!(msg, gauss_prediction(gauss_sg,hisg.edges[1], length(bin_list_sg)), c=:black, label="", yaxis=(:log, [0.9, :auto]))
-plot!(mid, gauss_prediction(gauss_id,hiid.edges[1], length(bin_list_ideal)), c=:royalblue, label="", yaxis=(:log, [0.9, :auto]))
-plot!(ms, gauss_prediction(gauss_mgvi3,his.edges[1], length(bin_list_mgvi3)), c=:red, label="", yaxis=(:log, [0.4, :auto]))
-plot!(mn, gauss_prediction(gauss_mgvis,hin.edges[1], length(bin_list_mgvis)/2), c=:blue, label="", yaxis=(:log, [0.4, :auto]))
+plot!(hists[1][2], gauss_prediction(list_of_gausses[2],hists[2][1].edges[1], length(bin_list_sg)), c=:black, label="", yaxis=(:log, [0.9, :auto]))
+plot!(hists[1][2], gauss_prediction(list_of_gausses[1],hists[1][1].edges[1], length(bin_list_ideal)), c=:royalblue, label="", yaxis=(:log, [0.9, :auto]))
+plot!(hists[1][2], gauss_prediction(list_of_gausses[7],hists[7][1].edges[1], length(bin_list_mgvi3)), c=:red, label="", yaxis=(:log, [0.4, :auto]))
+plot!(hists[1][2], gauss_prediction(list_of_gausses[4],hists[4][1].edges[1], length(bin_list_mgvis)/2), c=:blue, label="", yaxis=(:log, [0.4, :auto]))
 
 plot!(legend=:bottom)
 xlabel!("Normalized power excess")
@@ -284,24 +250,15 @@ function σ(gauss)
     return round(gauss.σ; digits=2)
 end
 
-μsg = μ(gauss_sg)
-σsg = σ(gauss_sg)
-μid = μ(gauss_id)
-σid = σ(gauss_id)
-μmgvi = μ(gauss_mgvi3)
-σmgvi = σ(gauss_mgvi3)
-μmgvis = μ(gauss_mgvis)
-σmgvis = σ(gauss_mgvis)
+μs = μ.(list_of_gausses)
+σs = σ.(list_of_gausses)
 
 # These functions are what we care for in the end. The higher the η the better!
 η(normal1, normal2) = round(normal1.μ / normal2.μ * normal2.σ / normal1.σ; digits=3)
 ξ(normal1, normal2) = round(normal1.σ / normal2.σ; digits=3)
-xisg = ξ(gauss_sg, gauss_id)
-etasg = η(gauss_sg, gauss_id)
-ximgvi = ξ(gauss_mgvi3, gauss_id)
-etamgvi = η(gauss_mgvi3, gauss_id)
-ximgvis = ξ(gauss_mgvis, gauss_id)
-etamgvis = η(gauss_mgvis, gauss_id)
+
+ξs = ξ.(list_of_gausses, list_of_gausses[1])
+ηs = η.(list_of_gausses, list_of_gausses[1])
 
 #annotate!(2,400,text(" μ = $μsg \n σ = $σsg", :left, 10))
 #annotate!(2,200,text(" μ = $μmgvi \n σ = $σmgvi", :red, :left, 10))

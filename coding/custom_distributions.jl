@@ -1,3 +1,4 @@
+#=
 struct inv_sqrt_S{T <: AbstractFloat} <: Distribution{Univariate,Continuous}
 
     a::T
@@ -76,7 +77,7 @@ Statistics.mean(d::inv_sqrt_S) = d.μ
 Statistics.var(d::inv_sqrt_S) = d.var
 
 Statistics.cov(d::inv_sqrt_S) = d.cov
-
+=#
 
 """
     Maxwell Boltzmann distribution rudimentary implementation. (May be necessary to expand.)
