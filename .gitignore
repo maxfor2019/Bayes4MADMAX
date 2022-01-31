@@ -5,8 +5,7 @@
 .ipynb_checkpoints
 .vscode
 
-plot_*.png
-plot_*.pdf
+data/tmp/*
 
 log*.txt
 *.log
