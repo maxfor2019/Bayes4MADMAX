@@ -118,7 +118,6 @@ println(sig) # unfortunately this is a string and not a usable object. But at le
 plot(data[:,1], data[:,2]/1e-20)
 
 
-
 ################ PART 4 - ideal analysis #####################################################
 # runtime ~ seconds
 
@@ -136,7 +135,7 @@ end
 function ideal_filter()
     axdata = h5read(path*"test5000-"*string(134)*".h5", "noise+ax")
     axdata[:,2] = zeros(size(axdata[:,2]))
-    signal = Theory(ma=45.517, rhoa=0.3,EoverN=0.1,σ_v=180.0,vlab=242.1)
+    signal = Theory(ma=45.517, rhoa=0.3,EoverN=0.1,σ_v=218.0,vlab=242.1)
     add_axion!(axdata, signal)
     axdata[:,2] ./= sum(axdata[:,2])
     return s_bin = deepcopy(axdata)
@@ -312,3 +311,81 @@ etamgvis = η(gauss_mgvis, gauss_id)
 #mysavefig("220125-HAYSTACfig6_compare_sumBGs_vs_sumBins")
 
 
+
+############# Non-Gaussianity Tests ######################################
+
+data_id = zeros(size(h5read(path*"test5000-"*string(2)*".h5", "noise+ax")))
+@time for i in range(1,nr_of_samples)
+    #data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax")
+    data_noax = h5read(path*"test5000-"*string(i)*".h5", "noise")
+    #data_ax = data .- data_noax
+    #integral_id = handle(data, s_bin) # this bin range optimizes gauss_ideal.μ / gauss_ideal.σ
+    #append!(bin_list_ideal, integral_id)
+    data_id .+= data_noax
+end
+
+plot(data_id[:,2] .*1e20, label="ideal")
+
+w = 0#301
+d=4
+data_sg = zeros(size(h5read(path*"test5000-"*string(2)*".h5", "noise+ax")[w+1:end-w,:]))
+@time for i in range(1,5000)
+    data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
+    data_nobg = h5read(path*"test5000-"*string(i)*".h5", "noise+ax")
+    data_noax = h5read(path*"test5000-"*string(i)*".h5", "noise")
+    data_ax = data_nobg .- data_noax
+    data, scale = my_normalize!(data, 1e-20)
+    
+    sg = savitzky_golay(data[:,2], 201, d)
+    data = data[w+1:end-w,:]
+    myfit = sg.y[w+1:end-w]
+    data[:,2] = data[:,2] - myfit - data_ax[w+1:end-w,2]*1e20
+    data_sg .+= data
+end
+
+plot!(data_sg[:,2], label="SG filter 2")
+
+
+data_m1 = zeros(size(h5read(path*"test5000-"*string(2)*".h5", "noise+ax")))
+data_m2 = zeros(size(h5read(path*"test5000-"*string(2)*".h5", "noise+ax")))
+data_msum = zeros(size(h5read(path*"test5000-"*string(2)*".h5", "noise+ax")))
+@time for i in range(1,5000)
+    try
+        data = h5read(path*"test5000-"*string(i)*".h5", "noise+ax+bg")
+        data1 = deepcopy(data)
+        data2 = deepcopy(data)
+
+        data_nobg = h5read(path*"test5000-"*string(i)*".h5", "noise+ax")
+        data_noax = h5read(path*"test5000-"*string(i)*".h5", "noise")
+        data_ax = data_nobg .- data_noax
+
+        bg = h5read(path_mgvi_fits*"test5000-"*string(i)*"_fit.h5", "background")
+        bg1 = bg[:,1]#(bg[:,1] .+ bg[:,2]) ./ 2.0
+        bg2 = bg[:,2]
+        data1[:,2] = data[:,2] - bg1 - data_ax[:,2]
+        data1, scale = my_normalize!(data1, 1e-20)
+        data_m1 .+= data1
+        
+        data2[:,2] = data[:,2] - bg2 - data_ax[:,2]
+        data2, scale = my_normalize!(data2, 1e-20)
+        data_m2 .+= data2
+
+        bg = (bg[:,1] .+ bg[:,2]) ./ 2.0
+        data[:,2] = data[:,2] - bg - data_ax[:,2]
+        data, scale = my_normalize!(data, 1e-20)
+        data_msum .+= data
+
+    catch
+        println(i)
+    end
+end
+
+
+plot(data_msum[:,2], label="MGVI")
+plot!(data_m1[:,2], label="MGVI sample1")
+plot!(data_m2[:,2], label="MGVI sample2")
+
+plot!(legend=:bottomright)
+mysavefig("220126-gaussianity_mgvi_compare")
+plot!(data_m1[:,1], data_m1[:,2])
+plot!(data_m2[:,1], data_m2[:,2])
