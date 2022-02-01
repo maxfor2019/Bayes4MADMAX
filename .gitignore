@@ -6,7 +6,8 @@
 .vscode
 
 data/tmp/*
-coding/schmierpapier.jl
+src/schmierpapier.jl
+data/plots/*
 
 log*.txt
 *.log
