@@ -20,6 +20,7 @@ using ForwardDiff # to be able to define Theory so BAT can read the struct
 
 include("../src/physics.jl")
 include("../src/read_data.jl")
+include("../src/generate_data.jl")
 include("../src/plotting.jl")
 include("../src/forward_models.jl")
 
@@ -30,23 +31,43 @@ include("../src/forward_models.jl")
 #                                                                       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
-names_list = ["Het3_10K_0-15z_18-85GHz_20170413_160107_S0"*string(i)*".smp" for i in 1:4]
-data = combine_data(names_list, path="./data/raw_data/measured/Olaf_2017/Data_Set_2/")
+# Define where the data can be found / should be stored
+DATASET = "test"
+KEYWORD = "simulated"
+TYPE = "raw_data"
 
-function initialize(data)
-    options=(
-        # reference frequency
-        f_ref = 11.0e9,#+2.034e3,
-    )
+# Example of how to write a simulated datafile
+using DataFrames
+using OrderedCollections
 
-    rel_freqs = data[:,1]
+data = gaussian_noise(2e6,7e6,2e3)
+ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δω(data), f_ref=11.0e9)
 
-    Δfreq = mean([rel_freqs[i] - rel_freqs[i-1] for i in 2:length(rel_freqs)])
-    freqs = rel_freqs .+ options.f_ref
+# optional
+signal = Theory(
+    ma=45.517, 
+    rhoa=0.3,
+    EoverN=0.1,
+    σ_v=218.0,
+    vlab=242.1
+)
 
-    ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δfreq)
-    return options, ex, Δfreq
-end
+# optional
+add_artificial_background!(data)
+add_axion!(data, signal)
+
+# Sometimes frustratingly slow. Fix this!
+@time save_data(data, ex, signal, "myfile", DATASET, KEYWORD, TYPE)
+
+
+# Examples how to access datasets
+data = get_data("myfile", DATASET, KEYWORD, TYPE)
+data = get_Olaf_2017("Data_Set_3")
+# Calling the latter function changes DATASET and KEYWORD
+println(DATASET*" "*KEYWORD)
+
+
+
 
 
 function sg_fit!(data)

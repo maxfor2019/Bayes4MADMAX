@@ -31,10 +31,11 @@ struct Experiment
     β::Float64 # Boost factor (assumed to be constant over this frequency range) []
     t_int::Float64 # integration time [s]
     Δω::Float64 # integration frequency interval [Hz]
+    f_ref::Float64 # absolute frequency where experiment was conducted. Will be added to data[:,1] [Hz]
 end
 
-function Experiment(;Be=10.0, A=1.0, β=5.0e4, t_int=100.0, Δω=1.0e3)
-    return Experiment(Be, A, β, t_int, Δω)
+function Experiment(;Be=10.0, A=1.0, β=5.0e4, t_int=100.0, Δω=1.0e3, f_ref=11.0e9)
+    return Experiment(Be, A, β, t_int, Δω, f_ref)
 end
 
 """
@@ -240,14 +241,14 @@ function signal_counts(th::Theory, ex::Experiment; c::Constants=SeedConstants())
     return Counts
 end
 
-function signal_counts_bin_old(freqency, th::Theory, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
+function signal_counts_bin_old(frequency, th::Theory, ex::Experiment; c::Constants=SeedConstants()) # 80 μs
     ma = scale_ma(th.ma)
     σ_v = scale_σv(th.σ_v)
 
     prefactor = signal_prefactor(th, ex; c=c, scaling=1.0) # 232 ns
     Eγ = freq(ma) * c.h_J # This can be assumed constant, since the width of the peak is very small compared to f_ref. Parts far away from peak are 0 anyways...
     # cdf part is integral over maxwell distribution. freq = data[1] are bin_centers
-    Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .+ ex.Δω/2, ma)) .- cdf.(MaxwellBoltzmann(σ_v), velocity.(freqency .- ex.Δω/2, ma)))
+    Counts = prefactor ./ Eγ .* ex.t_int .* (cdf.(MaxwellBoltzmann(σ_v), velocity.(frequency .+ ex.Δω/2, ma)) .- cdf.(MaxwellBoltzmann(σ_v), velocity.(frequency .- ex.Δω/2, ma)))
     return Counts
 end
 
@@ -263,9 +264,6 @@ function signal_counts_bin(frequency, th::Theory, ex::Experiment; c::Constants=S
     return Counts
 end
 
-function background_powerspectrum(ω, kwarg_dict)
-    return pdf.(Normal(kwarg_dict.f_ref,1e6), ω) *0.0 #* 1e9
-end
 
 scale_ma(ma) = 1e-6 * ma
 scale_σv(σv,c::Constants=SeedConstants()) = σv * 1e3 / c.c

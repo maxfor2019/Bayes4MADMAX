@@ -104,9 +104,9 @@ end
 """
 """
 function axion_forward_model(th::Theory, ex::Experiment, f::Vector{Float64})
-    include("physics.jl")
-    include("read_data.jl")
-    include("custom_distributions.jl")
+    include("../src/physics.jl")
+    include("../src/read_data.jl")
+    include("../src/custom_distributions.jl")
 
     c = SeedConstants()
     #σ_v = 218.0 # [km/s] +/- 6 according to 1209.0759

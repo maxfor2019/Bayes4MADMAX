@@ -5,9 +5,8 @@
 .ipynb_checkpoints
 .vscode
 
-data/tmp/*
-src/schmierpapier.jl
-data/plots/*
+tmp
+plots
 
 log*.txt
 *.log
