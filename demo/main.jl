@@ -14,60 +14,59 @@ using ValueShapes
 using IntervalSets
 using FileIO, JLD2 # for saving the samples
 
+using DataFrames
+using OrderedCollections
 using HDF5 # also for saving
 using SavitzkyGolay # SG background fit
 using ForwardDiff # to be able to define Theory so BAT can read the struct
 
 include("../src/physics.jl")
 include("../src/read_data.jl")
-include("../src/generate_data.jl")
 include("../src/plotting.jl")
 include("../src/forward_models.jl")
-
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#                                                                       #
-#                            Initialize                                 #
-#                                                                       #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Define where the data can be found / should be stored
 DATASET = "test"
 KEYWORD = "simulated"
 TYPE = "raw_data"
 
-# Example of how to write a simulated datafile
-using DataFrames
-using OrderedCollections
-
-data = gaussian_noise(2e6,7e6,2e3)
-ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δω(data), f_ref=11.0e9)
-
-# optional
-signal = Theory(
-    ma=45.517, 
-    rhoa=0.3,
-    EoverN=0.1,
-    σ_v=218.0,
-    vlab=242.1
-)
-
-# optional
-add_artificial_background!(data)
-add_axion!(data, signal)
-
-# Sometimes frustratingly slow. Fix this!
-@time save_data(data, ex, signal, "myfile", DATASET, KEYWORD, TYPE)
-
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                                                                       #
+#                            Read Data                                  #
+#                                                                       #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Examples how to access datasets
-data = get_data("myfile", DATASET, KEYWORD, TYPE)
+"""
+    Inputs:
+        DATASET: [String] Name of dataset
+        KEYWORD: [String] Always set to "simulated" when generating data!
+        TYPE: [String] I suppose you want to generate "raw_data"!
+        Needs to have a file called FILENAME.smp (and a file called meta-FILENAME.txt) in the specified folder DATASET.
+
+        Might work differently when reading datasets from the experimentalists.
+
+    Outputs:
+        data: [DataFrame] Keys are :freq and :pow or :powwA depending on whether the dataset includes a simulated axion.
+        ex: Experiment()
+        signal: Theory()
+        Saves all of the above to datafiles called "FILENAME.smp" and "meta-FILENAME.txt"
+"""
+filename = "myfile"
+data = get_data(filename, DATASET, KEYWORD, TYPE)
+ex = read_ex(DATASET, KEYWORD, TYPE)
+sig = read_th(DATASET, KEYWORD, TYPE)
+
 data = get_Olaf_2017("Data_Set_3")
 # Calling the latter function changes DATASET and KEYWORD
 println(DATASET*" "*KEYWORD)
 
 
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                                                                       #
+#                       Manipulate Data                                 #
+#                                                                       #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Do background subtraction on raw data (or whatever else you come up with in the future)
 
 
 function sg_fit!(data)

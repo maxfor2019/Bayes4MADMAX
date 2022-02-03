@@ -101,11 +101,11 @@ function gaussian_shape_forward_model(amplitude::Real, mean::Real, std::Real, x:
     map(xx -> eval_gauss(amplitude, mean, std, xx), x)
 end
 
+
 """
 """
 function axion_forward_model(th::Theory, ex::Experiment, f::Vector{Float64})
     include("../src/physics.jl")
-    include("../src/read_data.jl")
     include("../src/custom_distributions.jl")
 
     c = SeedConstants()

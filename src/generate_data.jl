@@ -43,7 +43,11 @@ function add_axion!(data, signal)
     end
     ax = my_axion(signal)
     data[:,2] += ax
-    rename!(data,:pow => :powwA)
+    if in("pow", names(data))
+        rename!(data,:pow => :powwA)
+    elseif in("powwA", names(data))
+        @warn "Your data seem to already contain an axion. You are now throwing another one in!"
+    end
     return data
 end
 
@@ -62,41 +66,49 @@ end
     Save a dataset, that may involve an axion signal. Self simulated or constructed from measured data.
 """
 function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
+    PATH = HAL9000(DATASET, KEYWORD, TYPE)
     if propertynames(data)[2] != :powwA
         error("Your data does not seem to contain a fake signal, therefore you should not throw in a Theory() type!")
     end
     meta_dict = OrderedDict(
-        "ex Explanation" => fieldnames(Experiment),
+        "ex Expl" => fieldnames(Experiment),
         "ex" => ex,
-        "sig Explanation" => fieldnames(Theory),
+        "signal Expl" => fieldnames(Theory),
         "signal" => th
     )
 
-    save_data_internal(data, meta_dict, filename, DATASET, KEYWORD, TYPE)
+    save_data_internal(data, meta_dict, filename, PATH)
 end
 
 function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
+    PATH = HAL9000(DATASET, KEYWORD, TYPE)
     if propertynames(data)[2] != :pow
         error("Your data seems to contain a fake signal, therefore you should throw in a Theory() type!")
     end
     meta_dict = OrderedDict(
-        "ex Explanation" => fieldnames(Experiment),
+        "ex Expl" => fieldnames(Experiment),
         "ex" => ex,
     )
 
-    save_data_internal(data, meta_dict, filename, DATASET, KEYWORD, TYPE)
+    save_data_internal(data, meta_dict, filename, PATH)
 end
 
-function save_data_internal(data, meta_dict::OrderedDict, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
+function HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
+    PATH = data_path(DATASET, KEYWORD, TYPE)
+    if KEYWORD == "measured" && TYPE == "raw_data"
+        error("I'm sorry Dave, I can't let you do that! You tried to write over measured raw data! PATH = $PATH")
+    else
+        println("Writing to "*PATH)
+    end
+    return PATH
+end
+
+function save_data_internal(data, meta_dict::OrderedDict, filename::String, PATH::String)
     PATH = data_path(DATASET, KEYWORD, TYPE)
     writedlm(PATH*"meta-"*filename*".txt", meta_dict)
-    writedlm(PATH*filename*".smp", Matrix(data), "\t")
-end
-
-"""
-    Construct path from input keywords.
-"""
-function data_path(DATASET, KEYWORD, TYPE)
-    return DATA_PATH = "./data/"*TYPE*"/"*KEYWORD*"/"*DATASET*"/"
+    writedlm(PATH*filename*".smp", permutedims(names(data)))
+    open(PATH*filename*".smp", "a") do io
+        writedlm(io, Matrix(data), "\t")
+    end 
 end
 
