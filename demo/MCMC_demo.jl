@@ -7,28 +7,32 @@ println("Hello there!") # ;-) Check if anything is responding!
 
 
 using BAT
-using Random, LinearAlgebra, Statistics, Distributions, StatsBase
+using Random, LinearAlgebra, Statistics, StatsBase
 include("../src/custom_distributions.jl")
-using Plots, LaTeXStrings
+
 using ValueShapes
-using IntervalSets
+
 using FileIO, JLD2 # for saving the samples
 
-using DataFrames
-using OrderedCollections
+
+
 using HDF5 # also for saving
 using SavitzkyGolay # SG background fit
-using ForwardDiff # to be able to define Theory so BAT can read the struct
 
-include("../src/physics.jl")
-include("../src/read_data.jl")
-include("../src/plotting.jl")
+
+
+
+
+
+
+
+
 include("../src/forward_models.jl")
 
 # Define where the data can be found / should be stored
-DATASET = "test"
-KEYWORD = "simulated"
-TYPE = "raw_data"
+#DATASET = "test"
+#KEYWORD = "simulated"
+#TYPE = "processed_data"
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #                                                                       #
@@ -51,15 +55,24 @@ TYPE = "raw_data"
         signal: Theory()
         Saves all of the above to datafiles called "FILENAME.smp" and "meta-FILENAME.txt"
 """
+
+using DelimitedFiles
+using DataFrames
+using ForwardDiff # to be able to define Theory so BAT can read the struct
+
+include("../src/read_data.jl")
+include("../src/physics.jl")
+
 filename = "myfile"
-data = get_data(filename, DATASET, KEYWORD, TYPE)
-ex = read_ex(DATASET, KEYWORD, TYPE)
-sig = read_th(DATASET, KEYWORD, TYPE)
+data = get_data(filename, "test", "simulated", "raw_data")
+ex = read_ex("test", "simulated", "raw_data")
+signal = read_th("test", "simulated", "raw_data")
 
+#=
 data = get_Olaf_2017("Data_Set_3")
-# Calling the latter function changes DATASET and KEYWORD
+# Calling this function changes DATASET and KEYWORD
 println(DATASET*" "*KEYWORD)
-
+=#
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #                                                                       #
@@ -67,43 +80,55 @@ println(DATASET*" "*KEYWORD)
 #                                                                       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Do background subtraction on raw data (or whatever else you come up with in the future)
+"""
+"""
+
+using Plots, LaTeXStrings
+using SavitzkyGolay
+using Distributions
+using OrderedCollections
+
+include("../src/plotting.jl")
+include("../src/backgrounds.jl")
+include("../src/generate_data.jl")
 
 
-function sg_fit!(data)
-    b=150
-    e=24426
-    sc = mean(data[:,2])
+# Data before background reduction
+plot_data(data)
 
-    rdata2 = deepcopy(data)
-    rdata2[:,2] ./= sc
-    sg = savitzky_golay(rdata2[:,2], 301, 4)
-    rdata2 = rdata2[b:e,:]
-    ft = sg.y[b:e]
-    rdata2[:,2] = rdata2[:,2] - ft
-    data = rdata2
-    data[:,2] .*= sc
-    return data
-end
+data = sg_fit(data, 4, 101; cut=true)
 
-signal = Theory(
-    ma=45.517, 
-    rhoa=0.3,
-    EoverN=0.1,
-    σ_v=218.0,
-    vlab=242.1
-)
+# Data after background reduction
+plot_data(data)
 
-options, ex, Δfreq = initialize(data)
-add_axion!(data, signal)
-sg_fit!(data)
 
-# generate dummy white noise of a specific length
-#data = gaussian_noise(5e6,5e6+1000*Δfreq, Δfreq, scale=1e-23)
+save_data(data, ex, signal, "myfile_nobg", "test", "simulated", "processed_data")
 
-include("prior.jl")
-include("likelihood.jl")
 
-prior = make_prior(data, options,pow=:loggaγγ)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+#                                                                       #
+#                        MCMC Analysis                                  #
+#                                                                       #
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+# Let MCMC run
+
+using DelimitedFiles
+using DataFrames
+using ForwardDiff # to be able to define Theory so BAT can read the struct
+using IntervalSets, Distributions, ValueShapes
+
+include("../src/read_data.jl")
+include("../src/physics.jl")
+
+filename = "myfile_nobg"
+data = get_data(filename, "test", "simulated", "processed_data")
+ex = read_ex("test", "simulated", "processed_data")
+signal = read_th("test", "simulated", "processed_data")
+
+include("../src/prior.jl")
+include("../src/likelihood.jl")
+
+prior = make_prior(data, ex,pow=:loggaγγ)
 posterior = PosteriorDensity(likelihood, prior)
 
 #truth = (ma=45.514, sig_v=59.9, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))  

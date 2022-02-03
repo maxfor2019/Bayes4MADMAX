@@ -104,11 +104,9 @@ function HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
 end
 
 function save_data_internal(data, meta_dict::OrderedDict, filename::String, PATH::String)
-    PATH = data_path(DATASET, KEYWORD, TYPE)
     writedlm(PATH*"meta-"*filename*".txt", meta_dict)
     writedlm(PATH*filename*".smp", permutedims(names(data)))
     open(PATH*filename*".smp", "a") do io
         writedlm(io, Matrix(data), "\t")
     end 
 end
-

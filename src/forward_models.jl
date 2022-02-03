@@ -1,17 +1,3 @@
-using BAT
-using Random, LinearAlgebra
-using Distributions
-using ValueShapes
-using Plots
-using FFTW
-import ForwardDiff
-using DelimitedFiles
-using PDMats
-using MGVI
-using Optim
-using Statistics
-
-
 ###### UTILITY ######
 
 function autodiff_linop(dp, linop)

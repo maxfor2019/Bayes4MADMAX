@@ -53,7 +53,7 @@ TYPE = "raw_data"
         Saves all of the above to datafiles called "FILENAME.smp" and "meta-FILENAME.txt"
 """
 
-data = gaussian_noise(2e6,7e6,2e3)
+data = gaussian_noise(2e6,7e6,2e3, scale=1e-23)
 ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δω(data), f_ref=11.0e9)
 
 # optional
@@ -68,6 +68,14 @@ signal = Theory(
 # optional
 add_artificial_background!(data)
 add_axion!(data, signal)
+
+plot(data[2:end,1],data[2:end,2],
+    ylims = (minimum(data[2:end,2]),maximum(data[2:end,2]))
+)
+
+# If the folder does not yet exist, construct folder
+PATH = data_path(DATASET, KEYWORD, TYPE)
+mkdir(PATH)
 
 # Sometimes frustratingly slow. Fix this!
 @time save_data(data, ex, signal, "myfile", DATASET, KEYWORD, TYPE)
