@@ -53,7 +53,7 @@ TYPE = "raw_data"
         Saves all of the above to datafiles called "FILENAME.smp" and "meta-FILENAME.txt"
 """
 
-data = gaussian_noise(2e6,7e6,2e3, scale=1e-23)
+data = gaussian_noise(2e6,15e6,3e4, scale=1e-23)
 ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δω(data), f_ref=11.0e9)
 
 # optional

@@ -66,7 +66,7 @@ end
     Save a dataset, that may involve an axion signal. Self simulated or constructed from measured data.
 """
 function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
-    PATH = HAL9000(DATASET, KEYWORD, TYPE)
+    PATH = _HAL9000(DATASET, KEYWORD, TYPE)
     if occursin("wA", names(data)[2]) == false
         error("Your data does not seem to contain a fake signal, therefore you should not throw in a Theory() type!")
     end
@@ -77,11 +77,11 @@ function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::
         "signal" => th
     )
 
-    save_data_internal(data, meta_dict, filename, PATH)
+    _save_data_internal(data, meta_dict, filename, PATH)
 end
 
 function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
-    PATH = HAL9000(DATASET, KEYWORD, TYPE)
+    PATH = _HAL9000(DATASET, KEYWORD, TYPE)
     if occursin("wA", names(data)[2]) == true
         error("Your data seems to contain a fake signal, therefore you should throw in a Theory() type!")
     end
@@ -90,10 +90,21 @@ function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYW
         "ex" => ex,
     )
 
-    save_data_internal(data, meta_dict, filename, PATH)
+    _save_data_internal(data, meta_dict, filename, PATH)
 end
 
-function HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
+function save_samples(out, prior::NamedTupleDist, filename::String, DATASET::String, KEYWORD::String)
+    PATH = _HAL9000(DATASET, KEYWORD, "samples")
+    run = Dict(
+        "prior" => prior,
+        "samples" => out.result
+    )
+
+    FileIO.save(PATH*filename*".jld2", run)
+end
+
+
+function _HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
     PATH = data_path(DATASET, KEYWORD, TYPE)
     if KEYWORD == "measured" && TYPE == "raw_data"
         error("I'm sorry Dave, I can't let you do that! You tried to write over measured raw data! PATH = $PATH")
@@ -103,10 +114,15 @@ function HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
     return PATH
 end
 
-function save_data_internal(data, meta_dict::OrderedDict, filename::String, PATH::String)
+function _save_data(data, meta_dict::OrderedDict, filename::String, PATH::String)
     writedlm(PATH*"meta-"*filename*".txt", meta_dict)
     writedlm(PATH*filename*".smp", permutedims(names(data)))
     open(PATH*filename*".smp", "a") do io
         writedlm(io, Matrix(data), "\t")
     end 
 end
+
+
+
+
+

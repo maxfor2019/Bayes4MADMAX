@@ -74,12 +74,12 @@ function corner(samples, params; modify=true, truths=nothing, savefig=nothing)
     plot!()
 end
 
-function plot_fit(samples, data, ex, kwargs; scaling=1.0, savefig=nothing)
+function plot_fit(samples, data, ex; scaling=1.0, savefig=nothing)
     #power_o = scaling .* Power(data[:,2], data[:,1] .+ kwargs[:f_ref], ex.t_int)
     #data_tmp = (data[1], power_o)
     plot_data(data, label="mock data")
     testpars = mean(samples)[1]
-    pow_p = fit_function(testpars,data[:,1],ex,kwargs)
+    pow_p = fit_function(testpars,data[:,1],ex)
     #pow_p = Power.(counts_p, data[:,1] .+ kwargs.f_ref, ex.t_int)
     println(testpars)
     plot!(data[:,1], scaling .* pow_p, label="fit",legend=:bottomleft)
@@ -89,13 +89,13 @@ function plot_fit(samples, data, ex, kwargs; scaling=1.0, savefig=nothing)
     plot!()
 end
 
-function plot_truths(truths, data, ex, kwargs; savefig=nothing)
+function plot_truths(data, truths::Theory, ex::Experiment; savefig=nothing)
     plot_data(data)
-    plot!(data[:, 1], fit_function(truths,data[:, 1],ex, kwargs))
+    plot!(data[:, 1], fit_function(truths,data[:, 1],ex))
     ylims!((minimum(data[:,2]),maximum(data[:,2]*1.2)))
     mysavefig(savefig)
-    #xlabel!("\$ f - f_{ref} \$")
-    #ylabel!("P*1e-23")
+    xlabel!("\$ f - f_{ref} \$")
+    ylabel!("Power")
     plot!()
 end
 

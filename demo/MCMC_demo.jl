@@ -12,7 +12,7 @@ include("../src/custom_distributions.jl")
 
 using ValueShapes
 
-using FileIO, JLD2 # for saving the samples
+
 
 
 
@@ -62,8 +62,8 @@ using ForwardDiff # to be able to define Theory so BAT can read the struct
 include("../src/read_data.jl")
 include("../src/physics.jl")
 
-filename = "myfile"
-data = get_data(filename, "test", "simulated", "raw_data")
+file_name = "myfile"
+data = get_data(file_name, "test", "simulated", "raw_data")
 ex = read_ex("test", "simulated", "raw_data")
 signal = read_th("test", "simulated", "raw_data")
 
@@ -125,39 +125,38 @@ using DelimitedFiles
 using DataFrames
 using ForwardDiff # to be able to define Theory so BAT can read the struct
 using IntervalSets, Distributions, ValueShapes
+using BAT
+using FileIO, JLD2 # for saving the samples
 
 include("../src/read_data.jl")
 include("../src/physics.jl")
 
-filename = "myfile_nobg"
-data = get_data(filename, "test", "simulated", "processed_data")
+file_name = "myfile_nobg"
+data = get_data(file_name, "test", "simulated", "processed_data")
 ex = read_ex("test", "simulated", "processed_data")
 signal = read_th("test", "simulated", "processed_data")
 
 include("../src/prior.jl")
 include("../src/likelihood.jl")
 
+# Implement 
 prior = make_prior(data, ex,pow=:loggaγγ)
 posterior = PosteriorDensity(likelihood, prior)
 
-#truth = (ma=45.514, sig_v=59.9, log_gag=log10.(gaγγ(fa(scale_ma(signal.ma)),signal.EoverN)))  
-#plot_truths(truth,data,ex, options)
+likelihood((ma=signal.ma, sig_v=signal.σ_v, gag=gaγγ(fa(scale_ma(signal.ma)), signal.EoverN)))
+plot_truths(data, signal, ex)
 
-
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#                                                                       #
-#                            Run                                        #
-#                                                                       #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
-#samples = bat_sample(posterior, MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 10^5, nchains = 4, convergence=BrooksGelmanConvergence(10.0, false), burnin = MCMCMultiCycleBurnin(max_ncycles=30))).result
-sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=500))
-#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 1*10^3, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
+# Below are alternatives for the sampling algorithm
+#sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=50))
+sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 2*10^3, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
 
 @time out = bat_sample(posterior, sampling)
+
+save_samples(out, prior, "myfile", "test", "simulated")
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -165,6 +164,9 @@ sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), n
 #                            Save                                       #
 #                                                                       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+
 
 samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
 file_name = "test"
