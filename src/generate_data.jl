@@ -67,7 +67,7 @@ end
 """
 function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
     PATH = HAL9000(DATASET, KEYWORD, TYPE)
-    if propertynames(data)[2] != :powwA
+    if occursin("wA", names(data)[2]) == false
         error("Your data does not seem to contain a fake signal, therefore you should not throw in a Theory() type!")
     end
     meta_dict = OrderedDict(
@@ -82,7 +82,7 @@ end
 
 function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
     PATH = HAL9000(DATASET, KEYWORD, TYPE)
-    if propertynames(data)[2] != :pow
+    if occursin("wA", names(data)[2]) == true
         error("Your data seems to contain a fake signal, therefore you should throw in a Theory() type!")
     end
     meta_dict = OrderedDict(

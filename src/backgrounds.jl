@@ -24,5 +24,11 @@ function sg_fit(data, order, len; cut=true)
     data[:,2] = data[:,2] - ft
     data[:,2] .*= sc
     data = DataFrame(data)
+    if in("pow", names(data))
+        rename!(data,:pow => :pownoB)
+    elseif in("powwA", names(data))
+        rename!(data,:powwA => :powwAnoB)
+    end
+    return data
 end
 

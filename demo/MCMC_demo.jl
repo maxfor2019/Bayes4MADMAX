@@ -53,7 +53,6 @@ include("../src/forward_models.jl")
         data: [DataFrame] Keys are :freq and :pow or :powwA depending on whether the dataset includes a simulated axion.
         ex: Experiment()
         signal: Theory()
-        Saves all of the above to datafiles called "FILENAME.smp" and "meta-FILENAME.txt"
 """
 
 using DelimitedFiles
@@ -81,6 +80,16 @@ println(DATASET*" "*KEYWORD)
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Do background subtraction on raw data (or whatever else you come up with in the future)
 """
+    Inputs:
+        data: [DataFrame] Keys are :freq and :pow or :powwA depending on whether the dataset includes a simulated axion.
+        ex: Experiment()
+        signal: Theory()
+
+    Outputs: 
+        data: [DataFrame] Keys are :freq and :pownoB or :powwAnoB depending on whether the dataset includes a simulated axion.
+        ex: Experiment()
+        signal: Theory()
+        Saves all of the above to datafiles called "FILENAME_noB.smp" and "meta-FILENAME_noB.txt"
 """
 
 using Plots, LaTeXStrings
