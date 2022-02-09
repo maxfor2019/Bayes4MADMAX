@@ -6,34 +6,6 @@ Pkg.activate("/home/th347/diehl/Documents/2103-Bayes")
 println("Hello there!") # ;-) Check if anything is responding!
 
 
-using BAT
-using Random, LinearAlgebra, Statistics, StatsBase
-include("../src/custom_distributions.jl")
-
-using ValueShapes
-
-
-
-
-
-using HDF5 # also for saving
-using SavitzkyGolay # SG background fit
-
-
-
-
-
-
-
-
-
-include("../src/forward_models.jl")
-
-# Define where the data can be found / should be stored
-#DATASET = "test"
-#KEYWORD = "simulated"
-#TYPE = "processed_data"
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #                                                                       #
 #                            Read Data                                  #
@@ -96,6 +68,7 @@ using Plots, LaTeXStrings
 using SavitzkyGolay
 using Distributions
 using OrderedCollections
+using ValueShapes
 
 include("../src/plotting.jl")
 include("../src/backgrounds.jl")
@@ -120,6 +93,21 @@ save_data(data, ex, signal, "myfile_nobg", "test", "simulated", "processed_data"
 #                                                                       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 # Let MCMC run
+"""
+    Inputs:
+        DATASET: [String] Name of dataset
+        KEYWORD: [String] Always set to "simulated" when generating data!
+        TYPE: [String] I suppose you want to read "processed_data"!
+        Needs to have a file called FILENAME.smp (and a file called meta-FILENAME.txt) in the specified folder DATASET.
+
+        Might work differently when reading datasets from the experimentalists.
+
+    Outputs: 
+        samples: [DensitySampleVector] BAT samples for further analysis. No other BAT output is saved!
+        prior: [NamedTupleDist] As the type suggests named tuple containing prior distributions.
+        Saves the above to a JLD2 file with keys "prior" and "samples".
+"""
+
 
 using DelimitedFiles
 using DataFrames
@@ -159,60 +147,52 @@ sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 2*10^3, nchains = 4, b
 save_samples(out, prior, "myfile", "test", "simulated")
 
 
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#                                                                       #
-#                            Save                                       #
-#                                                                       #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-
-
-
-
-samples_path = "/remote/ceph/user/d/diehl/MADMAXsamples/FakeAxion/"
-file_name = "test"
-
-input = (
-    data=data,
-    ex=ex,
-    options=options,
-    #signal=signal,
-    prior=prior,
-    likelihood=likelihood,
-    posterior=posterior,
-    MCMCsampler=sampling
-)
-
-run2 = Dict(
-    "input" => input,
-    "samples" => out.result
-)
-
-FileIO.save(samples_path*file_name*".jld2", run2)
-
-
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 #                                                                       #
 #                            Check                                      #
 #                                                                       #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-#=
-input = FileIO.load(samples_path*file_name*".jld2", "input")
-data = input.data
-options = input.options
-ex=input.ex
-likelihood=input.likelihood
-prior=input.prior
-signal=input.signal
-posterior=input.posterior
-sampling = input.MCMCsampler
-samples = FileIO.load(samples_path*file_name*".jld2", "samples")
-plot(samples)
+# Read and analyze MCMC output
+"""
+    Inputs:
+        DATASET: [String] Name of dataset
+        KEYWORD: [String] Always set to "simulated" when generating data!
+        TYPE: [String] I suppose you want to read "processed_data"!
+        Needs to have a file called FILENAME.smp (and a file called meta-FILENAME.txt) in the specified folder DATASET.
 
-println("Mean: $(mean(samples))")
-println("Std: $(std(samples))")
-plot_fit(samples, data, ex, options, savefig=nothing)
-xlims!((3.595e7,3.6075e7))
-#xlims!((5.5e6,6.5e6))
-mysavefig("220124-sg_loggag_OlafNoSignal_corner")
-=#
+        Might work differently when reading datasets from the experimentalists.
+
+    Outputs: 
+        Use your imagination! I post means and stds of the MCMC parameters as well as a corner plot and a best fit plot.
+"""
+
+
+
+using BAT
+using FileIO, JLD2 # for saving the samples
+using DelimitedFiles, DataFrames, ValueShapes, OrderedCollections
+using Random, Distributions, ForwardDiff
+using Plots, LaTeXStrings
+
+include("../src/read_data.jl")
+include("../src/generate_data.jl")
+include("../src/plotting.jl")
+include("../src/custom_distributions.jl")
+include("../src/physics.jl")
+
+file_name = "myfile_nobg"
+data = get_data(file_name, "test", "simulated", "processed_data")
+ex = read_ex("test", "simulated", "processed_data")
+signal = read_th("test", "simulated", "processed_data")
+
+include("../src/likelihood.jl") # contains the fit_function. Make sure you use the same for the analysis as you used to run MCMC!!
+
+samples = get_samples("myfile", "test", "simulated")
+prior = get_prior("myfile", "test", "simulated")
+
+
+plot(samples)
+println("Means: $(mean(samples)[1])")
+println("Stds: $(std(samples)[1])")
+plot_fit(samples, data, ex) # Best fit plot using mean values

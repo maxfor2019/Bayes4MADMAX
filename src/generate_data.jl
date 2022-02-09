@@ -109,7 +109,7 @@ function _HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
     if KEYWORD == "measured" && TYPE == "raw_data"
         error("I'm sorry Dave, I can't let you do that! You tried to write over measured raw data! PATH = $PATH")
     else
-        println("Writing to "*PATH)
+        println("Writing to / Reading from "*PATH)
     end
     return PATH
 end

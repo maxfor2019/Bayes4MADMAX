@@ -118,3 +118,17 @@ function construct_dict(META_PATH::String, key::String)
     args = parse.(Float64, str)
     return Dict(sym .=> args)
 end
+
+"""
+"""
+function get_samples(filename::String, DATASET::String, KEYWORD::String)
+    PATH = _HAL9000(DATASET, KEYWORD, "samples")
+    FileIO.load(PATH*filename*".jld2", "samples")
+end
+
+"""
+"""
+function get_prior(filename::String, DATASET::String, KEYWORD::String)
+    PATH = _HAL9000(DATASET, KEYWORD, "samples")
+    FileIO.load(PATH*filename*".jld2", "prior")
+end
