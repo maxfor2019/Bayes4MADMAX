@@ -123,101 +123,37 @@ function Random.rand(rng::AbstractRNG, d::MaxwellBoltzmann{T}) where {T <: Real}
     return res
 end
 
+using SpecialFunctions
+
 """
     Boosted Maxwell Boltzmann distribution rudimentary implementation. (May be necessary to expand.)
     Sun velocity has to be taken into consideration! Effectively implements formula (25) in 1701.03118. See also discussion in 1706.08388 (formula (14)).
 """
-struct BoostedMaxwellBoltzmann{T <: AbstractFloat} <: Distribution{Univariate,Continuous}
-    σv::Real
-    vlab::Real
-
-    μ::T
-    var::T
-    cov::Matrix{T}
-    σ::T
+struct BoostedMaxwellBoltzmann{T <: Real} <: Distribution{Univariate,Continuous}
+    σv::T
+    vlab::T
 end
 
 function BoostedMaxwellBoltzmann(σv::Real, vlab::Real, T::DataType = Float64)
-    mean = 1.0#2.0 * a * sqrt(2/pi)
-    var = 1.0#a^2.0 * (3 * pi - 8.0) / pi
-
     d::BoostedMaxwellBoltzmann{T} = BoostedMaxwellBoltzmann{T}(
         σv,
-        vlab,
-        mean,
-        var,
-        fill(var, 1, 1),
-        sqrt(var)
+        vlab
     )
 end
 
-function Distributions.pdf(d::BoostedMaxwellBoltzmann{T}, x::Real) where {T <: Real}
-    return 4.0 * pi / sqrt(2.0 * pi)^3. * x / (d.σv * d.vlab) * exp(-(x^2 + d.vlab^2)/(2. * d.σv^2)) * sinh(x * d.vlab / d.σv^2)
+function Distributions.pdf(d::BoostedMaxwellBoltzmann, x::Real)
+    return 4 * pi / sqrt(2 * pi)^3 * x / (d.σv * d.vlab) * exp(-(x^2 + d.vlab^2)/(2 * d.σv^2)) * sinh(x * d.vlab / d.σv^2)
 end
 
-using SpecialFunctions
-
-function Distributions.cdf(d::BoostedMaxwellBoltzmann{T}, x::Real) where {T <: Real} # 30 μs Dont broadcast if not absolutely necessary!
-    return d.σv / (sqrt(2*pi) * d.vlab) * (exp(-(x+d.vlab)^2. /(2. * d.σv^2)) - exp((2. * x * d.vlab - x^2. -d.vlab^2.) /(2. * d.σv^2))) + 1. / 2. * (erf((x-d.vlab)/(sqrt(2)*d.σv)) + erf((x+d.vlab)/(sqrt(2)*d.σv)))
+function Distributions.cdf(d::BoostedMaxwellBoltzmann, x::Real)
+    return d.σv / (sqrt(2*pi) * d.vlab) * (exp(-(x+d.vlab)^2 /(2 * d.σv^2)) - exp((2 * x * d.vlab - x^2 -d.vlab^2) /(2 * d.σv^2))) + 1 / 2 * (erf((x-d.vlab)/(sqrt(2)*d.σv)) + erf((x+d.vlab)/(sqrt(2)*d.σv)))
 end
 
-function Random.rand(rng::AbstractRNG, d::BoostedMaxwellBoltzmann{T}) where {T <: Real}
+function Random.rand(rng::AbstractRNG, d::BoostedMaxwellBoltzmann)
     x = randn(rng, Float64) * d.σv + d.vlab
     y = randn(rng, Float64) * d.σv 
     z = randn(rng, Float64) * d.σv 
-    vsq = x^2.0 + y^2.0 + z^2.0
+    vsq = x^2 + y^2 + z^2
     res = sqrt(vsq)
-    return res
-end
-
-
-
-"""
-    Reciprocal (log-e-uniform) distribution rudimentary implementation. (May be necessary to expand.)
-"""
-struct LogUniform{T <: AbstractFloat} <: Distribution{Univariate,Continuous}
-    min::Real
-    max::Real
-
-    μ::T
-    var::T
-    cov::Matrix{T}
-    σ::T
-end
-
-function LogUniform(min::Real, max::Real, T::DataType = Float64)
-    mean = (max - min) / log(max/min) 
-    var = (max^2 - min^2) / (2.0*log(max/min)) - mean^2
-
-    d::LogUniform{T} = LogUniform{T}(
-        min, max,
-        mean,
-        var,
-        fill(var, 1, 1),
-        sqrt(var)
-    )
-end
-
-function Distributions.pdf(d::LogUniform{T}, x::Real) where {T <: Real}
-    if d.min <= x <= d.max
-        return 1.0 / (x * log(d.max/d.min))
-    else
-        return 0.0
-    end
-end
-
-function Distributions.cdf(d::LogUniform{T}, x::Real) where {T <: Real} # 30 μs Dont broadcast if not absolutely necessary!
-    if x < d.min
-        return 0.0
-    elseif d.min <= x <= d.max
-        return log(x/d.min) / log(d.max/d.min)
-    else
-        return 1.0
-    end
-end
-
-function Random.rand(rng::AbstractRNG, d::LogUniform{T}) where {T <: Real}
-    x = rand(rng, Uniform(log(d.min),log(d.max)))
-    res = exp(x)
     return res
 end
