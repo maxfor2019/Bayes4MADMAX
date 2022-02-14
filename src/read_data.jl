@@ -55,9 +55,9 @@ end
 """
     Metadata: Read out Experiment()
 """
-function read_ex(DATASET::String, KEYWORD::String, TYPE::String)
+function read_ex(file_name::String, DATASET::String, KEYWORD::String, TYPE::String)
     PATH = data_path(DATASET, KEYWORD, TYPE)
-    META_PATH = check_meta(PATH)
+    META_PATH = PATH*"meta-"*file_name*".txt"
     exdict = construct_dict(META_PATH, "ex")
     if length(exdict) != length(fieldnames(Experiment))
         @warn "The Experiment() in the metafile contains a different number of arguments than the current implementation. Will set some parameters to default!"
@@ -69,33 +69,18 @@ end
 """
     Metadata: Read out Theory()
 """
-function read_th(DATASET::String, KEYWORD::String, TYPE::String)
+function read_th(file_name::String, DATASET::String, KEYWORD::String, TYPE::String)
     PATH = data_path(DATASET, KEYWORD, TYPE)
-    META_PATH = check_meta(PATH)
+    META_PATH = PATH*"meta-"*file_name*".txt"
     try 
         thdict = construct_dict(META_PATH, "signal")
         if length(thdict) != length(fieldnames(Theory))
             @warn "The Theory() in the metafile contains a different number of arguments than the current implementation. Will set some parameters to default!"
-        end    
+        end
         return Theory(;thdict...)
     catch
         error("Your metadata file seems to not contain a signal. Just wanted to let you know!")
     end
-end
-
-"""
-    Metadata: Check if there is exactly one metafile in the folder and return its name.
-"""
-function check_meta(PATH::String)
-    files = readdir(PATH)
-    metafile = occursin.("meta", files)
-    if sum(metafile) == 0
-        error("The chosen directory ("*PATH*") does not contain a metadata file. Please specify one!")
-    elseif sum(metafile) > 1
-        error("The chosen directory ("*PATH*") contains more than one metadata file. I don't know which to choose. 
-        If you want to set up multiple runs who differ in experimental or theoretical parameters, please put them in separate folders!")
-    end
-    META_PATH = PATH*files[metafile][1]
 end
 
 """
