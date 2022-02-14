@@ -10,6 +10,7 @@ function gaussian_noise(f_ini, f_fin, Δf; scale=1.0)
     noise_pow = rand(BAT.StandardMvNormal(length(f_arr))) * scale
     noise = hcat(f_arr, noise_pow)
     noise = DataFrame(noise, [:freq, :pow])
+    insertcols!(noise, :noise => noise_pow)
     return noise
 end
 
@@ -17,21 +18,20 @@ end
     Add an arbitrary 3rd order polynomial background function with two sines to any dataset.
 """
 function add_artificial_background!(data)
-    data[:,2] .+=  (deepcopy(data[:,1]).-7e6).^3 .* 1e-42 .* (1. +randn()) .- (deepcopy(data[:,1]).-7e6).^2 .* 1e-35 .* (1. +randn()) .- (deepcopy(data[:,1]).-7e6) .* 1e-29 .* (1. +randn()) .+ 1e-20  .+ 2e-24 .* (1. +randn()) .* sin.(deepcopy(data[:,1])./5e4) .+ 1e-23 .* (1. +randn()) .* sin.(deepcopy(data[:,1])./20e4)
+    bg =  (deepcopy(data[!, :freq]).-7e6).^3 .* 1e-42 .* (1. +randn()) .- (deepcopy(data[!, :freq]).-7e6).^2 .* 1e-35 .* (1. +randn()) .- (deepcopy(data[!, :freq]).-7e6) .* 1e-29 .* (1. +randn()) .+ 1e-20  .+ 2e-24 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./5e4) .+ 1e-23 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./20e4)
+    insertcols!(data, :background => bg)
+    data[!, :pow] .+= bg
     return data
 end
 
 """
     Add an axion specified by signal to your dataset.
 """
-function add_axion!(data, signal)
+function add_axion!(data, signal, ex)
 
-    ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δω(data), f_ref=11.0e9) # careful not to accidentally ignore a few of the relevant parameters!
-
-    my_axion = let f = data[:,1], ex = ex
-        f .+= ex.f_ref
+    my_axion = let f = data[!, :freq], ex = ex
         function ax(parameters)
-            sig = axion_forward_model(parameters, ex, f)
+            sig = axion_forward_model(parameters, ex, f.+ex.f_ref)
             if maximum(sig) > 0.0
                 nothing
             else
@@ -42,11 +42,14 @@ function add_axion!(data, signal)
 
     end
     ax = my_axion(signal)
-    data[:,2] += ax
-    if in("pow", names(data))
-        rename!(data,:pow => :powwA)
-    elseif in("powwA", names(data))
-        @warn "Your data seem to already contain an axion. You are now throwing another one in!"
+    if in("axion", names(data))
+        @warn "Your data seem to already contain an axion. You are now throwing another one in!
+        Problem is: You will only be able to save metadata for one axion. That means you're on your own now!"
+        data[!, :pow] += ax
+        insertcols!(data, :axion => ax, makeunique=true)
+    else
+        data[!, :pow] += ax
+        insertcols!(data, :axion => ax)
     end
     return data
 end
@@ -65,9 +68,9 @@ end
 """
     Save a dataset, that may involve an axion signal. Self simulated or constructed from measured data.
 """
-function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
+function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::String, KEYWORD::String, TYPE::String; overwrite=false)
     PATH = _HAL9000(DATASET, KEYWORD, TYPE)
-    if occursin("wA", names(data)[2]) == false
+    if in("axion", names(data)) == false
         error("Your data does not seem to contain a fake signal, therefore you should not throw in a Theory() type!")
     end
     meta_dict = OrderedDict(
@@ -77,12 +80,12 @@ function save_data(data, ex::Experiment, th::Theory, filename::String, DATASET::
         "signal" => th
     )
 
-    _save_data_internal(data, meta_dict, filename, PATH)
+    _save_data(data, meta_dict, filename, PATH; overwrite=overwrite)
 end
 
-function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYWORD::String, TYPE::String)
+function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYWORD::String, TYPE::String; overwrite=false)
     PATH = _HAL9000(DATASET, KEYWORD, TYPE)
-    if occursin("wA", names(data)[2]) == true
+    if in("axion", names(data)) == true
         error("Your data seems to contain a fake signal, therefore you should throw in a Theory() type!")
     end
     meta_dict = OrderedDict(
@@ -90,17 +93,21 @@ function save_data(data, ex::Experiment, filename::String, DATASET::String, KEYW
         "ex" => ex,
     )
 
-    _save_data_internal(data, meta_dict, filename, PATH)
+    _save_data(data, meta_dict, filename, PATH; overwrite=overwrite)
 end
 
-function save_samples(out, prior::NamedTupleDist, filename::String, DATASET::String, KEYWORD::String)
+function save_samples(out, prior::NamedTupleDist, filename::String, DATASET::String, KEYWORD::String; overwrite=false)
     PATH = _HAL9000(DATASET, KEYWORD, "samples")
     run = Dict(
         "prior" => prior,
         "samples" => out.result
     )
-
-    FileIO.save(PATH*filename*".jld2", run)
+    # need specific format unfortunately because prior and samples have weird formats!
+    if overwrite == false && isfile(PATH*filename*".jld2")
+        error("The file you want to write already exists. If you want to overwrite change kwarg overwrite to true! Exiting.")
+    else
+        FileIO.save(PATH*filename*".jld2", run)
+    end
 end
 
 
@@ -114,15 +121,14 @@ function _HAL9000(DATASET::String, KEYWORD::String, TYPE::String)
     return PATH
 end
 
-function _save_data(data, meta_dict::OrderedDict, filename::String, PATH::String)
+function _save_data(data, meta_dict::OrderedDict, filename::String, PATH::String; overwrite=false)
     writedlm(PATH*"meta-"*filename*".txt", meta_dict)
-    writedlm(PATH*filename*".smp", permutedims(names(data)))
-    open(PATH*filename*".smp", "a") do io
-        writedlm(io, Matrix(data), "\t")
-    end 
+    if overwrite == true
+        foo = h5open(PATH*filename*".h5", "w")
+        close(foo)
+    end
+    for name in permutedims(names(data))
+        h5write(PATH*filename*".h5", name, data[!, name])
+    end
 end
-
-
-
-
 

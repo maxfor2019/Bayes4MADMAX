@@ -38,7 +38,6 @@ file_name = "myfile"
 data = get_data(file_name, "test", "simulated", "raw_data")
 ex = read_ex("test", "simulated", "raw_data")
 signal = read_th("test", "simulated", "raw_data")
-
 #=
 data = get_Olaf_2017("Data_Set_3")
 # Calling this function changes DATASET and KEYWORD
@@ -78,13 +77,13 @@ include("../src/generate_data.jl")
 # Data before background reduction
 plot_data(data)
 
-data = sg_fit(data, 4, 101; cut=true)
+data = sg_fit(data, 4, 301; cut=true)
 
 # Data after background reduction
-plot_data(data)
+plot_data(data; key=:pownoB)
 
 
-save_data(data, ex, signal, "myfile_nobg", "test", "simulated", "processed_data")
+save_data(data, ex, signal, "myfile_nobg", "test", "simulated", "processed_data", overwrite=true)
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -137,14 +136,14 @@ plot_truths(data, signal, ex)
 
 # Make sure to set JULIA_NUM_THREADS=nchains for maximal speed (before starting up Julia), e.g. via VSC settings.
 # Below are alternatives for the sampling algorithm
-#sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=50))
-sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 2*10^3, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
+sampling = MCMCSampling(mcalg = MetropolisHastings(tuning=AdaptiveMHTuning()), nsteps = 5*10^4, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=500))
+#sampling = MCMCSampling(mcalg = HamiltonianMC(), nsteps = 2*10^3, nchains = 4, burnin = MCMCMultiCycleBurnin(max_ncycles=3))
 #using UltraNest
 #sampling = ReactiveNestedSampling()
 
 @time out = bat_sample(posterior, sampling)
 
-save_samples(out, prior, "myfile", "test", "simulated")
+save_samples(out, prior, "myfile", "test", "simulated", overwrite=true)
 
 
 

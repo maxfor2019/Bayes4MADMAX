@@ -43,7 +43,7 @@ end
 
 
 
-likelihood = let freqs=collect(data[:, 1]), observation=data[:, 2], f=fit_function, ex=ex
+likelihood = let freqs=collect(data[!, :freq]), observation=data[!, :pownoB], f=fit_function, ex=ex
     function logl(pars) 
         #println(pars)
         expectation = f(pars, freqs, ex) # 80 μs

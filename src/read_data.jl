@@ -46,8 +46,9 @@ end
 """
 function get_data(filename::String, DATASET::String, KEYWORD::String, TYPE::String)
     PATH = data_path(DATASET, KEYWORD, TYPE)
-    full = readdlm(PATH*filename*".smp")
-    return DataFrame(full[2:end,:], Symbol.(full[1,:]))
+    foo = h5open(PATH*filename*".h5", "r")
+    return DataFrame(h5read.(PATH*filename*".h5", keys(foo)), Symbol.(keys(foo)))
+    close(foo)
 end
 
 

@@ -4,8 +4,11 @@ println("Hello there!") # ;-) Check if anything is responding!
 using BAT
 using Random, Distributions
 using DataFrames
-using OrderedCollections
+using OrderedCollections, ValueShapes
 using ForwardDiff # to be able to define Theory so BAT can read the struct
+using Plots
+using HDF5
+using DelimitedFiles
 
 include("../src/custom_distributions.jl")
 include("../src/physics.jl")
@@ -53,7 +56,7 @@ TYPE = "raw_data"
         Saves all of the above to datafiles called "FILENAME.smp" and "meta-FILENAME.txt"
 """
 
-data = gaussian_noise(2e6,15e6,3e4, scale=1e-23)
+data = gaussian_noise(2e6,7e6,2e3, scale=1e-24)
 ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=Δω(data), f_ref=11.0e9)
 
 # optional
@@ -67,7 +70,7 @@ signal = Theory(
 
 # optional
 add_artificial_background!(data)
-add_axion!(data, signal)
+add_axion!(data, signal, ex)
 
 plot(data[2:end,1],data[2:end,2],
     ylims = (minimum(data[2:end,2]),maximum(data[2:end,2]))
@@ -78,4 +81,4 @@ PATH = data_path(DATASET, KEYWORD, TYPE)
 mkdir(PATH)
 
 # Sometimes frustratingly slow. Fix this!
-@time save_data(data, ex, signal, "myfile", DATASET, KEYWORD, TYPE)
+@time save_data(data, ex, signal, "myfile", DATASET, KEYWORD, TYPE; overwrite=true)

@@ -5,8 +5,8 @@
     I have no idea how this could work yet.
 """
 function ma_prior(data, ex::Experiment)
-    fstart = ex.f_ref + minimum(data[:,1])
-    fend = ex.f_ref + maximum(data[:,1])
+    fstart = ex.f_ref + minimum(data[!, :freq])
+    fend = ex.f_ref + maximum(data[!, :freq])
     mstart = mass(fstart) .* 1e6
     mend = mass(fend) .* 1e6     
     return mstart..mend
