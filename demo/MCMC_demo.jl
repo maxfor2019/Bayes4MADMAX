@@ -120,8 +120,8 @@ include("../src/physics.jl")
 
 file_name = "myfile_nobg"
 data = get_data(file_name, "test", "simulated", "processed_data")
-ex = read_ex("test", "simulated", "processed_data")
-signal = read_th("test", "simulated", "processed_data")
+ex = read_ex(file_name, "test", "simulated", "processed_data")
+signal = read_th(file_name, "test", "simulated", "processed_data")
 
 include("../src/prior.jl")
 include("../src/likelihood.jl")
@@ -182,8 +182,8 @@ include("../src/physics.jl")
 
 file_name = "myfile_nobg"
 data = get_data(file_name, "test", "simulated", "processed_data")
-ex = read_ex("test", "simulated", "processed_data")
-signal = read_th("test", "simulated", "processed_data")
+ex = read_ex(file_name, "test", "simulated", "processed_data")
+signal = read_th(file_name, "test", "simulated", "processed_data")
 
 include("../src/likelihood.jl") # contains the fit_function. Make sure you use the same for the analysis as you used to run MCMC!!
 
