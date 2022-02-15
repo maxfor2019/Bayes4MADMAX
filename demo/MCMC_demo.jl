@@ -109,14 +109,18 @@ save_data(data, ex, signal, "myfile_nobg", "test", "simulated", "processed_data"
 
 
 using DelimitedFiles
+using LaTeXStrings, Plots
 using DataFrames
 using ForwardDiff # to be able to define Theory so BAT can read the struct
-using IntervalSets, Distributions, ValueShapes
+using IntervalSets, Distributions, ValueShapes, Random, OrderedCollections
 using BAT
-using FileIO, JLD2 # for saving the samples
+using FileIO, JLD2, HDF5 # for saving the samples
 
+include("../src/custom_distributions.jl")
 include("../src/read_data.jl")
 include("../src/physics.jl")
+include("../src/plotting.jl")
+include("../src/generate_data.jl")
 
 file_name = "myfile_nobg"
 data = get_data(file_name, "test", "simulated", "processed_data")
