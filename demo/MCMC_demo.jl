@@ -36,8 +36,8 @@ include("../src/physics.jl")
 
 file_name = "myfile"
 data = get_data(file_name, "test", "simulated", "raw_data")
-ex = read_ex("test", "simulated", "raw_data")
-signal = read_th("test", "simulated", "raw_data")
+ex = read_ex(file_name, "test", "simulated", "raw_data")
+signal = read_th(file_name, "test", "simulated", "raw_data")
 #=
 data = get_Olaf_2017("Data_Set_3")
 # Calling this function changes DATASET and KEYWORD

@@ -82,3 +82,41 @@ mkdir(PATH)
 
 # Sometimes frustratingly slow. Fix this!
 @time save_data(data, ex, signal, "myfile", DATASET, KEYWORD, TYPE; overwrite=true)
+
+
+
+
+#=
+PATH = data_path("211201-MockData/Bg_fits_MGVI", "simulated", "processed_data")
+info = data_path("211201-MockData/Bg_fits_id", "simulated", "processed_data")
+
+
+for file_name in readdir(PATH)
+    file_name = file_name[1:end-3]
+    ex = Experiment(Be=10.0, A=1.0, β=5e4, t_int=100.0, Δω=2034.0, f_ref=11.0e9)
+    signal = Theory(ma=45.517, rhoa=0.3,EoverN=0.1,σ_v=218.0,vlab=242.1)
+
+    dinf = get_data(file_name[1:end-4]*"-id", "211201-MockData/Bg_fits_id", "simulated", "processed_data")
+    df = DataFrame([dinf[!,:freq], dinf[!,:pow], dinf[!,:noise], dinf[!,:axion]], [:freq, :pow, :noise, :axion])
+
+    N = h5read(PATH*file_name*".h5", "noise_std")
+    NA = h5read(PATH*file_name*".h5", "background")
+    df[!,:background] = vec(mean(NA, dims=2))
+    df[!,:pownoB] = df[!, :pow] .- vec(mean(NA, dims=2))
+    for i in 1:size(NA)[2]
+        insertcols!(df, :background => NA[:,i], makeunique=true)
+        insertcols!(df, :pownoB => df[!, :pow] .- NA[:,i], makeunique=true)
+    end
+    #df[!, :axion] = NA[:,2] - N[:,2]
+    #df[!, :noise] = N[:,2]
+    file_name *= "-MGVI"
+    save_data(df, ex, signal, file_name, "211201-MockData/Bg_fits_MGVI", "simulated", "processed_data", overwrite=true)
+end
+NA[:,1]
+file_name = readdir(PATH)[1231][1:end-3]
+NA = h5read(PATH*file_name*".h5", "background")
+dft[!,:bg]=vec(mean(NA,dims=2))
+dinf = get_data("test5000-1000-id", "211201-MockData/Bg_fits_id", "simulated", "processed_data")
+dinf = get_data(file_name[1:end-4]*"-id", "211201-MockData/Bg_fits_id", "simulated", "processed_data")
+dft = DataFrame([dinf[!,:freq], dinf[!,:pow], dinf[!,:noise], dinf[!,:axion]], [:freq, :pow, :noise, :axion])
+=#
