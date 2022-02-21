@@ -18,7 +18,9 @@ end
     Add an arbitrary 3rd order polynomial background function with two sines to any dataset.
 """
 function add_artificial_background!(data)
-    bg =  (deepcopy(data[!, :freq]).-7e6).^3 .* 1e-42 .* (1. +randn()) .- (deepcopy(data[!, :freq]).-7e6).^2 .* 1e-35 .* (1. +randn()) .- (deepcopy(data[!, :freq]).-7e6) .* 1e-29 .* (1. +randn()) .+ 1e-20  .+ 2e-24 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./5e4) .+ 1e-23 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./20e4)
+    #bg =  (deepcopy(data[!, :freq]).-7e6).^3 .* 3e-40 .* (1. +randn()/5) .- (deepcopy(data[!, :freq]).-7e6).^2 .* 1e-34 .* (1. +randn()/5) .- (deepcopy(data[!, :freq]).-7e6) .* 3e-27 .* (1. +randn()/5) .+ 1e-20  .+ 2e-24 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./5e4) .+ 1e-23 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./20e4) #.* 
+    bg = 1e-20 .* (erf.((data[!,:freq].-data[1,:freq])/5e5) .* (data[1,:freq] ./data[!,:freq]).^3 .+ exp.(-((data[!,:freq].-6.5e6 .* (1. +randn()/15))./2e6 ./ (1. +randn()/10)).^2)) .+ 5e-23 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./10e4) .+ 4e-22 .* (1. +randn()) .* sin.(deepcopy(data[!, :freq])./25e4)
+    bg[rand(1:length(data[!,:freq]), 10)] .+= 3e-23
     insertcols!(data, :background => bg)
     data[!, :pow] .+= bg
     return data
