@@ -1,5 +1,9 @@
 println("Hello there!")
 
+push!(LOAD_PATH, normpath(@__DIR__, "..", "src"))
+using Bayes4MADMAX
+
+
 # Come up with realistic priors on axion mass and abundancy from theory parameters
 using BAT
 using Random, LinearAlgebra, Statistics, Distributions, StatsBase
