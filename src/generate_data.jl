@@ -143,6 +143,7 @@ function _save_powerspectrum(data, fname::String, PATH::String; overwrite=false)
     for name in permutedims(names(data))
         h5write(_file_path(PATH, fname), "powerspectrum/"*name, data[!, name])
     end
+    chmod(PATH, 0o770, recursive=true)
 end
 
 function _check_path(data, fname::String, dataset::String; newfolder="")
@@ -204,6 +205,7 @@ function save_samples(out, prior::NamedTupleDist, BGfit, fname::String, dataset:
     else
         FileIO.save(_file_path(PATH, fname; type=".jld2"), run)
     end
+    chmod(PATH, 0o770, recursive=true)
 end
 
 """
