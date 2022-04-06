@@ -1,3 +1,6 @@
+
+export Constants, Experiment, Theory, Power, Counts, deBroglie, freq, mass, velocity, mu, speed, ma, fa, gaγγ, EoverN, velocity_distribution, signal_powerspectrum, signal_prefactor, signal_counts_bin
+
 """
     All relevant fundamental constants.
 """
@@ -28,7 +31,7 @@ end
 struct Experiment
     Be::Float64 # external magnetic field [T]
     A::Float64 # surface of dielectric disks [m^2]
-    β::Float64 # Boost factor (assumed to be constant over this frequency range) []
+    β::Union{Float64, Vector{Float64}} # Boost factor (assumed to be constant over this frequency range) []
     t_int::Float64 # integration time [s]
     Δω::Float64 # integration frequency interval [Hz]
     f_ref::Float64 # absolute frequency where experiment was conducted. Will be added to data[:,1] [Hz]

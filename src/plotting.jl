@@ -1,3 +1,5 @@
+export plot_data, plot_fit, plot_truths
+
 """
     Modifies standard BAT output to nice corner plot.
     Not yet, but hopefully soon!
@@ -74,24 +76,27 @@ function corner(samples, params; modify=true, truths=nothing, savefig=nothing)
     plot!()
 end
 
-function plot_fit(samples, data, ex; scaling=1.0, savefig=nothing)
+function plot_fit(samples, data, ex; scaling=1.0, truths=nothing, savefig=nothing, kwargs...)
     #power_o = scaling .* Power(data[:,2], data[:,1] .+ kwargs[:f_ref], ex.t_int)
     #data_tmp = (data[1], power_o)
-    plot_data(data, key=:pownoB, label="mock data")
-    testpars = mean(samples)[1]
+    plot_data(data; key=:pownoB, label="mock data", kwargs...)
+    testpars = mode(samples)[1]
     pow_p = fit_function(testpars,data[!, :freq],ex)
     #pow_p = Power.(counts_p, data[:,1] .+ kwargs.f_ref, ex.t_int)
     println(testpars)
     plot!(data[!, :freq], scaling .* pow_p, label="fit",legend=:bottomleft)
+    if truths != nothing
+        plot!(data[!, :freq], fit_function(truths,data[!, :freq],ex); label="true signal")
+    end
     xlabel!(L"f - f_{\textrm{ref}}")
     ylabel!(L"\textrm{Power}\;[10^{-23} \textrm{W}]")
     mysavefig(savefig)
     plot!()
 end
 
-function plot_truths(data, truths::Theory, ex::Experiment; savefig=nothing)
-    plot_data(data, key=:pownoB)
-    plot!(data[!, :freq], fit_function(truths,data[!, :freq],ex))
+function plot_truths(data, truths::Theory, ex::Experiment; savefig=nothing, kwargs...)
+    plot_data(data,; key=:pownoB, label="data", kwargs...)
+    plot!(data[!, :freq], fit_function(truths,data[!, :freq],ex); label="true signal")
     ylims!((minimum(data[!, :pownoB]),maximum(data[!, :pownoB]*1.2)))
     mysavefig(savefig)
     xlabel!("\$ f - f_{ref} \$")
@@ -99,10 +104,14 @@ function plot_truths(data, truths::Theory, ex::Experiment; savefig=nothing)
     plot!()
 end
 
-function plot_data(data; key=:pow, label="", savefig=nothing)
-    plot(data[!, :freq], data[!, key], label=label)
+function plot_data(data; key=:pow, label="", savefig=nothing, overplot=false, kwargs...)
+    if overplot == false
+        plot(data[!, :freq], data[!, key]; label=label, kwargs...)
+    elseif overplot == true
+        plot!(data[!, :freq], data[!, key]; label=label, kwargs...)
+    end
     ylims!((minimum(data[!, key]),maximum(data[!, key])))
-    xlabel!("f - f_(ref)")
+    xlabel!("\$ f - f_{ref} \$")
     ylabel!("Power / bin")
     #xlims!((3.3e7,3.5e7))
     #ylims!((2200,2300))

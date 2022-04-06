@@ -1,3 +1,5 @@
+export make_prior
+
 """
     Calculates possible ma values for considered frequency range.
     This essentially is a flat prior. No possibility for anything else yet!
@@ -47,7 +49,7 @@ Priors include
 
 function make_prior(data, ex::Experiment; pow=:rhoa)
     ma = ma_prior(data, ex)
-    sig_v = Normal(160.0,39.0) # 6 from DM uncertainty, 3 from Sun velocity uncertainty and 30 from earth movement. This cannot be added up and earth velocity is not normal distributed. Needs to be fixed at some point
+    sig_v = Normal(218.0,39.0) # 6 from DM uncertainty, 3 from Sun velocity uncertainty and 30 from earth movement. This cannot be added up and earth velocity is not normal distributed. Needs to be fixed at some point
     if pow==:rhoa
         rhoa = rhoa_prior(0.45)
         return NamedTupleDist(ma=ma, sig_v=sig_v, rhoa=rhoa)
