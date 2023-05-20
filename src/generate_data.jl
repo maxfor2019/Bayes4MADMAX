@@ -96,7 +96,7 @@ function add_axion!(data, signal, ex)
 end
 
 function Δω(data::DataFrame) 
-    Δωvec = [data[i,1] - data[i-1,1] for i in 2:length(data[:,1])]
+    Δωvec = [data[i,:freq] - data[i-1,:freq] for i in 2:length(data[:,:freq])]
     Δωvec2 = vcat(Δωvec[2:end], Δωvec[1])
     if Δωvec ≈ Δωvec2
         nothing
