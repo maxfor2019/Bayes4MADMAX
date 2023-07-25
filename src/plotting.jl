@@ -80,7 +80,7 @@ function plot_fit(samples, data, ex; scaling=1.0, truths=nothing, savefig=nothin
     #power_o = scaling .* Power(data[:,2], data[:,1] .+ kwargs[:f_ref], ex.t_int)
     #data_tmp = (data[1], power_o)
     plot_data(data; key=:pownoB, label="mock data", kwargs...)
-    testpars = mode(samples)[1]
+    testpars = mode(samples) # should be mode(samples) but that seems to not work with BATv3.0.0
     pow_p = fit_function(testpars,data[!, :freq],ex)
     #pow_p = Power.(counts_p, data[:,1] .+ kwargs.f_ref, ex.t_int)
     println(testpars)
